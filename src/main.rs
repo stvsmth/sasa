@@ -6,13 +6,17 @@ use crossterm::{
 };
 use std::io::{stdout, Write};
 
+const BOTTOM_OFFSET: u16 = 8;
+
 fn main() -> Result<()> {
     let mut stdout = stdout();
 
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
-    let y_max = 40;
-    let x_max = 150;
+    let (x_max, y_max) = terminal::size()?;
+    
+    // TODO: Exit early if we are below some useful dimensions.
+    let y_max = y_max - BOTTOM_OFFSET; // Give some space for command prompt to reappear
     for y in 0..y_max {
         for x in 0..x_max {
             if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
@@ -30,9 +34,11 @@ fn main() -> Result<()> {
 
     match read()? {
         Event::Key(_event) => (),
-        Event::Mouse(_event) =>(),
+        Event::Mouse(_event) => (),
         Event::Resize(_width, _height) => (),
     }
+
+    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
     for y in 0..y_max {
         for x in 0..x_max {
