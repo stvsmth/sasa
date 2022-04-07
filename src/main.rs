@@ -39,7 +39,7 @@ fn main() -> Result<()> {
             if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
                 stdout
                     .queue(cursor::MoveTo(x, y))?
-                    .queue(style::PrintStyledContent("█".yellow()))?;
+                    .queue(style::PrintStyledContent("█".white()))?;
             } else if y == y_max / 2 {
                 stdout
                     .queue(cursor::MoveTo(5, y))?
