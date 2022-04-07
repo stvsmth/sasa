@@ -10,6 +10,7 @@ None. Just seems like a fun way to play around in Rust. Excellent dog food quoti
 
 * Cross-platform, idiomatic Rust terminal interface
   * `https://docs.rs/crossterm/latest/crossterm/`
+  * `https://github.com/crossterm-rs/crossterm/tree/master/examples`
 * Markdown parsing, using pull-down technology
   * `https://docs.rs/pulldown-cmark/0.9.1/pulldown_cmark`
 * Rendering ASCII art
