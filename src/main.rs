@@ -1,10 +1,10 @@
 use crossterm::{
     cursor,
+    event::{read, Event},
     style::{self, Stylize},
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
 use std::io::{stdout, Write};
-use std::{thread, time};
 
 fn main() -> Result<()> {
     let mut stdout = stdout();
@@ -28,9 +28,11 @@ fn main() -> Result<()> {
     }
     stdout.flush()?;
 
-    let three_secs = time::Duration::from_millis(3000);
-
-    thread::sleep(three_secs);
+    match read()? {
+        Event::Key(_event) => (),
+        Event::Mouse(_event) =>(),
+        Event::Resize(_width, _height) => (),
+    }
 
     for y in 0..y_max {
         for x in 0..x_max {
