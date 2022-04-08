@@ -23,7 +23,8 @@ None. Just seems like a fun way to play around in Rust. Excellent dog food quoti
 Not any time soon. Major issues:
 
 * Most annoying, hanging indents (should be easy, let's pair)
-* Images are ... maybe
+* Cannot go backward
+* Images are ... maybe, and probably PITA
 * Transitions ... ??
 
 # COOL
