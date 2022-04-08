@@ -4,6 +4,7 @@ use crossterm::{
     style::{self, Color, Stylize},
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
+use fake::{faker::company::en::CatchPhase, Fake};
 use rand::seq::SliceRandom;
 use std::{
     collections::VecDeque,
@@ -22,39 +23,6 @@ fn main() -> Result<()> {
     let (x_max, y_max) = terminal::size()?;
     let y_max = y_max - BOTTOM_OFFSET;
 
-    // TODO: We'll read the input and construct the Line structs with computed Y values
-    let input = vec![
-        vec![
-            Line {
-                y: 8,
-                content: "Hello ...".to_string(),
-            },
-            Line {
-                y: 9,
-                content: "... Cruel World".to_string(),
-            },
-            Line {
-                y: 10,
-                content: "--".to_string(),
-            },
-            Line {
-                y: 11,
-                content: "Yours, Sasa".to_string(),
-            },
-        ],
-        vec![
-            Line {
-                y: 8,
-                content: "This is".to_string(),
-            },
-            Line {
-                y: 9,
-                content: "... the second slide".to_string(),
-            },
-        ],
-    ];
-    let mut slide_content = input.iter();
-
     // Random color generation
     // TODO: Can we get color value of terminal and have dark vs light mode options?
     let mut colors = [
@@ -72,6 +40,9 @@ fn main() -> Result<()> {
 
     let mut stdout = stdout();
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+
+    let slides = get_slide_content(5);
+    let mut slide_content = slides.iter();
     loop {
         let color = match colors.pop_front() {
             // Keep cycling through our colors.  TODO: This seems okay, but maybe there's a cleaner way.
@@ -81,7 +52,6 @@ fn main() -> Result<()> {
             }
             _ => unreachable!("Deque emptied, that shouldn't happen."),
         };
-
         match slide_content.next() {
             None => break,
             Some(slide) => {
@@ -120,4 +90,35 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn get_slide_content(slide_count: usize) -> Vec<Vec<Line>> {
+    // FIXME: Take in y_height and compute the vertical center values for y positions.
+    // Temporary helper function to generate content until we add Markdown parsing
+    let mut slides = Vec::with_capacity(slide_count);
+    for _ in 0..=slide_count {
+        slides.push(vec![
+            Line {
+                y: 8,
+                content: generate_buzzword_phrase(false),
+            },
+            Line {
+                y: 9,
+                content: generate_buzzword_phrase(true),
+            },
+            Line {
+                y: 10,
+                content: generate_buzzword_phrase(true),
+            },
+        ])
+    }
+    slides
+}
+
+fn generate_buzzword_phrase(with_bullet: bool) -> String {
+    if with_bullet {
+        format!("* {}", CatchPhase().fake::<String>())
+    } else {
+        CatchPhase().fake::<String>()
+    }
 }
