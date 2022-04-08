@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         vec!["with", "love"],
         vec!["Your", "S"],  // FIXME: We need to NOT reset the X coordinate.
     ];
-    let mut lines = input.iter();
+    let mut slide_content = input.iter();
 
     // Random color generation
     // TODO: Can we get color value of terminal and have dark vs light mode options?
@@ -51,13 +51,13 @@ fn main() -> Result<()> {
                 colors.push_back(c);
                 c
             }
-            _ => panic!("Deque emptied, that shouldn't happen."),
+            _ => unreachable!("Deque emptied, that shouldn't happen."),
         };
 
-        match lines.next() {
+        match slide_content.next() {
             None => break,
-            Some(line) => {
-                let height = line.len();
+            Some(lines) => {
+                let height = lines.len();
                 if height > y_max as usize - CONTENT_MARGIN {
                     panic!("Input too tall")
                 }
@@ -73,10 +73,10 @@ fn main() -> Result<()> {
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                         // Draw content
                         } else if y >= (y_max / 2) - half_height && y < (y_max / 2) + half_height {
-                            for row in line.iter() {
+                            for line in lines.iter() {
                                 stdout
-                                    .queue(cursor::MoveTo(5, y))?
-                                    .queue(style::Print(row))?;
+                                    .queue(cursor::MoveTo(x, y))?
+                                    .queue(style::Print(line))?;
                             }
                         }
                     }
