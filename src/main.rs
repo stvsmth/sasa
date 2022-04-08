@@ -11,20 +11,47 @@ use std::{
 };
 
 const BOTTOM_OFFSET: u16 = 4;
-const CONTENT_MARGIN: usize = 4;
+const CONTENT_MARGIN: u16 = 4;
+
+struct Line {
+    y: u16,
+    content: String,
+}
 
 fn main() -> Result<()> {
     let (x_max, y_max) = terminal::size()?;
     let y_max = y_max - BOTTOM_OFFSET;
 
+    // TODO: We'll read the input and construct the Line structs with computed Y values
     let input = vec![
-        vec!["Hello ...", "... World"],
-        vec!["Oh so", "Cruel World"],
-        vec!["from", "Sasa", "your", "friendly", "presentation tool"],
-        vec!["Goodbye ...", "for now"],
-        vec!["Oh", "Cruel World"],
-        vec!["with", "love"],
-        vec!["Your", "S"],  // FIXME: We need to NOT reset the X coordinate.
+        vec![
+            Line {
+                y: 8,
+                content: "Hello ...".to_string(),
+            },
+            Line {
+                y: 9,
+                content: "... Cruel World".to_string(),
+            },
+            Line {
+                y: 10,
+                content: "--".to_string(),
+            },
+            Line {
+                y: 11,
+                content: "Yours, Sasa".to_string(),
+            },
+        ],
+        vec![
+            Line {
+                y: 8,
+                content: "This is".to_string(),
+            },
+            Line {
+                y: 9,
+                content: "... the second slide".to_string(),
+            },
+        ],
     ];
     let mut slide_content = input.iter();
 
@@ -38,6 +65,7 @@ fn main() -> Result<()> {
         Color::White,
         Color::Yellow,
     ];
+
     let mut rng = rand::thread_rng();
     colors.shuffle(&mut rng);
     let mut colors = VecDeque::from(colors);
@@ -56,15 +84,12 @@ fn main() -> Result<()> {
 
         match slide_content.next() {
             None => break,
-            Some(lines) => {
-                let height = lines.len();
-                if height > y_max as usize - CONTENT_MARGIN {
-                    panic!("Input too tall")
-                }
-                let half_height: u16 = ((height / 2) + 1)
-                    .try_into()
-                    .expect("Failed to downcast half-height");
+            Some(slide) => {
                 for y in 0..y_max {
+                    let content = match slide.iter().find(|l| l.y == y) {
+                        None => "".to_string(),
+                        Some(l) => l.content.clone(),
+                    };
                     for x in 0..x_max {
                         // Draw border
                         if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
@@ -72,12 +97,15 @@ fn main() -> Result<()> {
                                 .queue(cursor::MoveTo(x, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                         // Draw content
-                        } else if y >= (y_max / 2) - half_height && y < (y_max / 2) + half_height {
-                            for line in lines.iter() {
+                        } else if !content.is_empty() {
+                            let mut this_x = x + CONTENT_MARGIN;
+                            for ch in content.chars() {
                                 stdout
-                                    .queue(cursor::MoveTo(x, y))?
-                                    .queue(style::Print(line))?;
+                                    .queue(cursor::MoveTo(this_x, y))?
+                                    .queue(style::Print(ch))?;
+                                this_x += 1;
                             }
+                            break;
                         }
                     }
                 }
