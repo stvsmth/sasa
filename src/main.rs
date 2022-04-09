@@ -113,7 +113,8 @@ fn main() -> Result<()> {
                                 .queue(cursor::MoveTo(x_max - 1, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
-                        } else if y == y_max - CONTENT_MARGIN + 1 {
+                        // Draw the footer, but not on the last slide
+                        } else if y == y_max - CONTENT_MARGIN + 1 && slide_n != num_slides {
                             let footer = format!("{} of {}", slide_n, num_slides);
                             stdout
                                 .queue(cursor::MoveTo(x_max - 12, y))?
