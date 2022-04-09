@@ -5,6 +5,7 @@ use crossterm::{
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
 use fake::{faker::company::en::CatchPhase, Fake};
+use image2ascii::string2ascii;
 use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::VecDeque,
@@ -43,6 +44,7 @@ fn main() -> Result<()> {
 
     let num_slides = rng.gen_range(4..=7);
     let slides = generate_buzzword_slides(num_slides, y_max as usize);
+    let num_slides = slides.len();  // We may add an ending slide
     let mut slide_content = slides.iter();
     let mut slide_n = 0;
     loop {
@@ -126,6 +128,23 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
         }
         slides.push(lines);
     }
+
+    // Add a `The End` slide
+    let height = (max_height / 2) as f32;
+    let c2d = string2ascii("The end!", height, '.', Option::None, None).unwrap();
+    let ascii_lines = c2d.to_lines();
+    let num_lines = ascii_lines.len();
+    let mut y = (max_height / 2) - (num_lines / 2);
+    let mut lines = Vec::with_capacity(num_lines);
+    for line in ascii_lines {
+        lines.push(Line {
+            y: y as u16,
+            content: line,
+        });
+        y += 1;
+    }
+    slides.push(lines);
+
     slides
 }
 
