@@ -5,7 +5,7 @@ use crossterm::{
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
 use fake::{faker::company::en::CatchPhase, Fake};
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::VecDeque,
     io::{stdout, Write},
@@ -41,7 +41,8 @@ fn main() -> Result<()> {
     let mut stdout = stdout();
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
-    let slides = get_slide_content(5);
+    let num_slides = rng.gen_range(5..7);
+    let slides = get_slide_content(num_slides, y_max as usize);
     let mut slide_content = slides.iter();
     loop {
         let color = match colors.pop_front() {
@@ -92,25 +93,28 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_slide_content(slide_count: usize) -> Vec<Vec<Line>> {
-    // FIXME: Take in y_height and compute the vertical center values for y positions.
+fn get_slide_content(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
     // Temporary helper function to generate content until we add Markdown parsing
     let mut slides = Vec::with_capacity(slide_count);
+    let mut rng = rand::thread_rng();
+
+    // Center the lines vertically ... Assume the max height is 20
+    // ... if we have 2 lines of text, those lines will be at 9, 10
+    // ... if we have 3 lines of text, those lines will be at 9, 10, 11 etc
     for _ in 0..=slide_count {
-        slides.push(vec![
-            Line {
-                y: 8,
-                content: generate_buzzword_phrase(false),
-            },
-            Line {
-                y: 9,
-                content: generate_buzzword_phrase(true),
-            },
-            Line {
-                y: 10,
-                content: generate_buzzword_phrase(true),
-            },
-        ])
+        let num_lines = rng.gen_range(2..4);
+        let mut y = (max_height / 2) - (num_lines / 2);
+        let mut lines = Vec::with_capacity(num_lines);
+        for j in 0..=num_lines {
+            let with_bullet = if j == 0 {false} else {true};
+            lines.push(
+                Line {
+                y: y as u16,
+                content: generate_buzzword_phrase(with_bullet),
+            });
+            y += 1;
+        }
+        slides.push(lines);
     }
     slides
 }
