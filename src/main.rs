@@ -41,9 +41,10 @@ fn main() -> Result<()> {
     let mut stdout = stdout();
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
-    let num_slides = rng.gen_range(5..7);
+    let num_slides = rng.gen_range(4..=7);
     let slides = generate_buzzword_slides(num_slides, y_max as usize);
     let mut slide_content = slides.iter();
+    let mut slide_n = 0;
     loop {
         let color = match colors.pop_front() {
             // Keep cycling through our colors.  TODO: This seems okay, but maybe there's a cleaner way.
@@ -57,6 +58,7 @@ fn main() -> Result<()> {
         match slide_content.next() {
             None => break,
             Some(slide) => {
+                slide_n += 1;
                 for y in 0..y_max {
                     let content = match slide.iter().find(|l| l.y == y) {
                         None => "".to_string(),
@@ -82,6 +84,11 @@ fn main() -> Result<()> {
                                 .queue(cursor::MoveTo(x_max - 1, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
+                        } else if y == y_max - CONTENT_MARGIN + 1 {
+                            let footer = format!("{} of {}", slide_n, num_slides);
+                            stdout
+                                .queue(cursor::MoveTo(x_max - 12, y))?
+                                .queue(style::Print(footer.as_str()))?;
                         }
                     }
                 }
@@ -105,8 +112,8 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
     // Center the lines vertically ... Assume the max height is 20
     // ... if we have 2 lines of text, those lines will be at 9, 10
     // ... if we have 3 lines of text, those lines will be at 9, 10, 11 etc
-    for _ in 0..=slide_count {
-        let num_lines = rng.gen_range(2..4);
+    for _ in 0..slide_count {
+        let num_lines = rng.gen_range(2..=4);
         let mut y = (max_height / 2) - (num_lines / 2);
         let mut lines = Vec::with_capacity(num_lines);
         for j in 0..=num_lines {
