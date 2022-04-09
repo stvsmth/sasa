@@ -42,11 +42,12 @@ fn main() -> Result<()> {
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
     let num_slides = rng.gen_range(5..7);
-    let slides = get_slide_content(num_slides, y_max as usize);
+    let slides = generate_buzzword_slides(num_slides, y_max as usize);
     let mut slide_content = slides.iter();
     loop {
         let color = match colors.pop_front() {
             // Keep cycling through our colors.  TODO: This seems okay, but maybe there's a cleaner way.
+            // Don't want random, because we want to make sure border changes on every slide change
             Some(c) => {
                 colors.push_back(c);
                 c
@@ -67,7 +68,7 @@ fn main() -> Result<()> {
                             stdout
                                 .queue(cursor::MoveTo(x, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
-                        // Draw content
+                        // Draw line of text
                         } else if !content.is_empty() {
                             let mut this_x = x + CONTENT_MARGIN;
                             for ch in content.chars() {
@@ -76,6 +77,10 @@ fn main() -> Result<()> {
                                     .queue(style::Print(ch))?;
                                 this_x += 1;
                             }
+                            // ... finish of this line with a border element, then break for this line
+                            stdout
+                                .queue(cursor::MoveTo(x_max - 1, y))?
+                                .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
                         }
                     }
@@ -93,8 +98,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn get_slide_content(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
-    // Temporary helper function to generate content until we add Markdown parsing
+fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
     let mut slides = Vec::with_capacity(slide_count);
     let mut rng = rand::thread_rng();
 
@@ -106,9 +110,8 @@ fn get_slide_content(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
         let mut y = (max_height / 2) - (num_lines / 2);
         let mut lines = Vec::with_capacity(num_lines);
         for j in 0..=num_lines {
-            let with_bullet = if j == 0 {false} else {true};
-            lines.push(
-                Line {
+            let with_bullet = j != 0;
+            lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
             });
