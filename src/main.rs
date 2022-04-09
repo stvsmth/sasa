@@ -1,5 +1,6 @@
 /*
 TODO:
+* Make string2ascii character an option
 * Research adding features option to image2ascii for string2ascii only, submit PR
 * Setup CI: build win,unix,mac binaries
 * Add timer to footer (??? keep a background thread?)
@@ -20,6 +21,8 @@ use std::{
     io::{stdout, Write},
     thread, time,
 };
+
+const DRAW_CH: char = '*';
 
 const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
@@ -51,7 +54,9 @@ fn main() -> Result<()> {
     let mut colors = VecDeque::from(colors);
 
     let mut stdout = stdout();
-    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+    stdout
+        .execute(terminal::Clear(terminal::ClearType::All))?
+        .execute(cursor::Hide)?;
 
     let num_slides = rng.gen_range(3..=5);
     let slides = generate_buzzword_slides(num_slides, y_max as usize);
@@ -80,7 +85,8 @@ fn main() -> Result<()> {
                     };
                     for x in 0..x_max {
                         // Draw border
-                        if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
+                        if (y == 0 || y == y_max - 1) || [0, 1, x_max - 2, x_max - 1].contains(&x) {
+                            // if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
                             stdout
                                 .queue(cursor::MoveTo(x, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
@@ -102,6 +108,8 @@ fn main() -> Result<()> {
                             }
                             // ... finish of this line with a border element, then break for this line
                             stdout
+                                .queue(cursor::MoveTo(x_max - 2, y))?
+                                .queue(style::PrintStyledContent("█".with(color)))?
                                 .queue(cursor::MoveTo(x_max - 1, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
@@ -113,6 +121,7 @@ fn main() -> Result<()> {
                         }
                     }
                 }
+                stdout.queue(style::Print("\n"))?;
                 stdout.flush()?;
                 match read()? {
                     Event::Key(_event) => (),
@@ -152,16 +161,21 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
     }
 
     // Add a `The End` slide
-    let height = max_height as f32 / 2.5;
+    let height = (max_height / 2) as f32;
     let now = Local::now();
     let message = format!("{}", now.format("%H:%M"));
-    let c2d = string2ascii(message.as_str(), height, '/', Option::None, None).unwrap();
+    let c2d = string2ascii(message.as_str(), height, DRAW_CH, Option::None, None).unwrap();
     let ascii_lines = c2d.to_lines();
     let num_lines = ascii_lines.len();
     let mut y = (max_height / 2) - (num_lines / 2);
     let mut lines = Vec::with_capacity(num_lines + 1);
 
-    lines.push(Line{ y: (y - 1) as u16, content: "The end".to_string(), is_animated: false, animation_rate: 0});
+    lines.push(Line {
+        y: (y - 1) as u16,
+        content: "The end".to_string(),
+        is_animated: false,
+        animation_rate: 0,
+    });
     y += 1;
     for line in ascii_lines {
         // image2ascii will contain space above/below to allow for ascender/descenders
