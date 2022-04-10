@@ -1,11 +1,3 @@
-/*
-TODO:
-* Make string2ascii character an option
-* Research adding features option to image2ascii for string2ascii only, submit PR
-* Setup CI: build win,unix,mac binaries
-* Add timer to footer (??? keep a background thread?)
-* Figure out how to go backward!!!!
-*/
 use chrono::Local;
 use crossterm::{
     cursor,
@@ -16,6 +8,7 @@ use crossterm::{
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
 use rand::{seq::SliceRandom, Rng};
+use std::fs;
 use std::{
     collections::VecDeque,
     io::{stdout, Write},
@@ -114,7 +107,7 @@ fn main() -> Result<()> {
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
                         // Draw the footer, but not on the last slide
-                        } else if y == y_max - CONTENT_MARGIN + 1 && slide_n != num_slides {
+                        } else if y == y_max - CONTENT_MARGIN + 1  {
                             let footer = format!("{} of {}", slide_n, num_slides);
                             stdout
                                 .queue(cursor::MoveTo(x_max - 12, y))?
@@ -197,6 +190,24 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
     }
     slides.push(lines);
 
+    // Add ToDo slide
+    let todo_text: String = read_todo();
+    let todo_lines: Vec<&str> = todo_text.split('\n').into_iter().collect();
+    let num_lines = todo_lines.len();
+    let mut y = (max_height / 2) - (num_lines / 2);
+    let mut lines = Vec::with_capacity(num_lines);
+
+    for line in todo_lines {
+        lines.push(Line {
+            y: y as u16,
+            content: line.to_string(),
+            is_animated: false,
+            animation_rate: 0,
+        });
+        y += 1;
+    }
+    slides.push(lines);
+    
     slides
 }
 
@@ -206,4 +217,8 @@ fn generate_buzzword_phrase(with_bullet: bool) -> String {
     } else {
         CatchPhase().fake::<String>()
     }
+}
+
+fn read_todo() -> String {
+    fs::read_to_string("todo.txt").expect("Need a todo.txt file for our presentation.")
 }
