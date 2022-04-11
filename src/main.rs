@@ -25,81 +25,42 @@ struct Line {
     content: String,
     is_animated: bool,
     animation_rate: u64,
+    color: Color,
 }
 
 fn main() -> Result<()> {
     let (x_max, y_max) = terminal::size()?;
     let y_max = y_max - BOTTOM_OFFSET;
 
-    // Random color generation
-    // TODO: Can we get color value of terminal and have dark vs light mode options?
-    let colors = [
-        Color::Cyan,
-        Color::DarkMagenta,
-        Color::Green,
-        Color::Red,
-        Color::White,
-        Color::Yellow,
-    ];
-    let num_colors = colors.len();
-
     let mut stdout = stdout();
     stdout
         .execute(terminal::Clear(terminal::ClearType::All))?
         .execute(cursor::Hide)?;
 
-    let mut rng = rand::thread_rng();
-    let num_slides = rng.gen_range(3..=5);
-    let slides = generate_buzzword_slides(num_slides, y_max as usize);
+    let slides = generate_buzzword_slides(x_max as usize, y_max as usize);
     let num_slides = slides.len(); // We may add an ending slide
     let mut slide_content = slides.iter();
     let mut slide_n = 0;
     loop {
-        let color = colors[slide_n % num_colors];
         match slide_content.next() {
             None => break,
             Some(slide) => {
                 slide_n += 1;
+
+                // Draw border
                 for y in 0..y_max {
-                    // FIXME: This is dumb, should I be using if-let?
-                    let (content, is_animated, rate) = match slide.iter().find(|l| l.y == y) {
-                        None => ("".to_string(), false, 0),
-                        Some(l) => (l.content.clone(), l.is_animated, l.animation_rate),
-                    };
                     for x in 0..x_max {
-                        // Draw border
                         if (y == 0 || y == y_max - 1) || [0, 1, x_max - 2, x_max - 1].contains(&x) {
-                            // if (y == 0 || y == y_max - 1) || (x == 0 || x == x_max - 1) {
                             stdout
                                 .queue(cursor::MoveTo(x, y))?
-                                .queue(style::PrintStyledContent("█".with(color)))?;
-                        // Draw line of text
-                        } else if !content.is_empty() {
-                            let mut this_x = x + CONTENT_MARGIN;
-                            for ch in content.chars() {
-                                if is_animated {
-                                    stdout
-                                        .queue(cursor::MoveTo(this_x, y))?
-                                        .queue(style::PrintStyledContent("█".with(color)))?;
-                                    stdout.flush()?;
-                                    thread::sleep(time::Duration::from_millis(rate));
-                                }
-                                stdout
-                                    .queue(cursor::MoveTo(this_x, y))?
-                                    .queue(style::Print(ch))?;
-                                this_x += 1;
-                            }
-                            // ... finish of this line with a border element, then break for this line
-                            stdout
-                                .queue(cursor::MoveTo(x_max - 2, y))?
-                                .queue(style::PrintStyledContent("█".with(color)))?
-                                .queue(cursor::MoveTo(x_max - 1, y))?
-                                .queue(style::PrintStyledContent("█".with(color)))?;
-                            break;
+                                .queue(style::PrintStyledContent("█".with(Color::Red)))?;
                         }
                     }
                 }
-                print_footer(&mut stdout, x_max, y_max, slide_n, num_slides);
+                // Draw footer, then contents (in case we're animating)
+                draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides);
+                draw_contents(&mut stdout, x_max, slide)?;
+
                 stdout.queue(style::Print("\n"))?;
                 stdout.flush()?;
                 match read()? {
@@ -114,7 +75,34 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_footer(stdout:&mut Stdout, x_max: u16, y_max: u16, n: usize, total: usize) {
+fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> {
+    let color = slide[0].color;
+    for line in slide {
+        let mut x = CONTENT_MARGIN;
+        for ch in line.content.chars() {
+            if line.is_animated {
+                stdout
+                    .queue(cursor::MoveTo(x, line.y))?
+                    .queue(style::PrintStyledContent("█".with(line.color)))?;
+                stdout.flush()?;
+                thread::sleep(time::Duration::from_millis(line.animation_rate));
+            }
+            stdout
+                .queue(cursor::MoveTo(x, line.y))?
+                .queue(style::Print(ch))?;
+            x += 1;
+        }
+        // ... finish of this line with a border element, then break for this line
+        stdout
+            .queue(cursor::MoveTo(x_max - 2, line.y))?
+            .queue(style::PrintStyledContent("█".with(color)))?
+            .queue(cursor::MoveTo(x_max - 1, line.y))?
+            .queue(style::PrintStyledContent("█".with(color)))?;
+    }
+    Ok(())
+}
+
+fn draw_footer(stdout: &mut Stdout, x_max: u16, y_max: u16, n: usize, total: usize) {
     let footer = format!("{n} of {total}", n = n, total = total);
     stdout
         .queue(cursor::MoveTo(x_max - 12, y_max - 3))
@@ -123,15 +111,28 @@ fn print_footer(stdout:&mut Stdout, x_max: u16, y_max: u16, n: usize, total: usi
         .unwrap();
 }
 
-fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
-    let mut slides = Vec::with_capacity(slide_count);
+fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line>> {
     let mut rng = rand::thread_rng();
+    let slide_count = rng.gen_range(3..=5);
+    let mut slides = Vec::with_capacity(slide_count);
+
+    // Random color generation
+    // TODO: Can we get color value of terminal and have dark vs light mode options?
+    // let colors = [
+    //     Color::Cyan,
+    //     Color::DarkMagenta,
+    //     Color::Green,
+    //     Color::Red,
+    //     Color::White,
+    //     Color::Yellow,
+    // ];
 
     // Center the lines vertically ... Assume the max height is 20
     // ... if we have 2 lines of text, those lines will be at 9, 10
     // ... if we have 3 lines of text, those lines will be at 9, 10, 11 etc
     // ... TODO: Currently not setting transition for first 2 slides
     for i in 0..slide_count {
+        let mut rng = rand::thread_rng();
         let num_lines = rng.gen_range(2..=4);
         let mut y = (max_height / 2) - (num_lines / 2);
         let mut lines = Vec::with_capacity(num_lines);
@@ -142,6 +143,7 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
                 content: generate_buzzword_phrase(with_bullet),
                 is_animated: i > 2,
                 animation_rate: 8,
+                color: Color::Red,
             });
             y += 1;
         }
@@ -150,7 +152,7 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
 
     // /////////////////////////////////////////////////////////////////////////////////////////////////////
     // Add a `The End` slide
-    let height = (max_height as f32 / 2.5) as f32;
+    let height = (max_height as f32 / 2.5).round();
     let now = Local::now();
     let message = format!("{}", now.format("%H:%M"));
     let c2d = string2ascii(message.as_str(), height, DRAW_CH, Option::None, None).unwrap();
@@ -160,10 +162,11 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
     let mut lines = Vec::with_capacity(num_lines + 1);
 
     lines.push(Line {
-        y: y as u16,
+        y: (y + 1) as u16,
         content: "The end".to_string(),
         is_animated: false,
         animation_rate: 0,
+        color: Color::Red,
     });
     lines.extend(gen_lines_from_ascii(y + 2, time_art, true));
     slides.push(lines);
@@ -182,31 +185,37 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
 
     // .. generate TODO as ascii art
     let height: f32 = (max_height - todo_lines_count) as f32 / 1.5;
-    if height as usize + todo_lines_count + (2 * CONTENT_MARGIN as usize) > max_height {
+    let needed_height: usize = height as usize + todo_lines_count;
+
+    let c2d = string2ascii(header, height, DRAW_CH, Option::None, None).unwrap();
+    let todo_art = c2d.to_lines();
+    let needed_width = todo_art
+        .iter()
+        .fold(std::usize::MIN, |x, line| x.max(line.len()));
+    if needed_height > max_height || needed_width > max_width {
         lines.push(Line {
             y: CONTENT_MARGIN,
             content: header.to_string(),
             is_animated: false,
             animation_rate: 0,
+            color: Color::Red,
         });
     } else {
-        let c2d = string2ascii(header, height, DRAW_CH, Option::None, None).unwrap();
-        let todo_art = c2d.to_lines();
-
         // ... add the ascii art to the slide, starting at top
-        lines.extend(gen_lines_from_ascii(2, todo_art, false));
+        lines.extend(gen_lines_from_ascii(CONTENT_MARGIN.into(), todo_art, false));
     }
 
     // ... compute the starting point and add the actual text
-    let mut y = lines.last().unwrap().y + CONTENT_MARGIN;
+    let mut y = lines.len() as u16 + CONTENT_MARGIN;
     for line in todo_lines {
+        y += 1;
         lines.push(Line {
-            y: y as u16,
+            y,
             content: line,
             is_animated: false,
             animation_rate: 0,
+            color: Color::Red,
         });
-        y += 1;
     }
 
     slides.push(lines);
@@ -242,6 +251,7 @@ fn gen_lines_from_ascii(mut y: usize, ascii_lines: Vec<String>, animate: bool) -
             content: line,
             is_animated: animate,
             animation_rate: if animate { 1 } else { 0 },
+            color: Color::Red,
         });
         y += 1;
     }
