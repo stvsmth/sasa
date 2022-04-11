@@ -7,10 +7,9 @@ use crossterm::{
 };
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
-use rand::{seq::SliceRandom, Rng};
+use rand::Rng;
 use std::fs;
 use std::{
-    collections::VecDeque,
     io::{stdout, Write},
     thread, time,
 };
@@ -33,7 +32,7 @@ fn main() -> Result<()> {
 
     // Random color generation
     // TODO: Can we get color value of terminal and have dark vs light mode options?
-    let mut colors = [
+    let colors = [
         Color::Cyan,
         Color::DarkMagenta,
         Color::Green,
@@ -41,31 +40,21 @@ fn main() -> Result<()> {
         Color::White,
         Color::Yellow,
     ];
-
-    let mut rng = rand::thread_rng();
-    colors.shuffle(&mut rng);
-    let mut colors = VecDeque::from(colors);
+    let num_colors = colors.len();
 
     let mut stdout = stdout();
     stdout
         .execute(terminal::Clear(terminal::ClearType::All))?
         .execute(cursor::Hide)?;
 
+    let mut rng = rand::thread_rng();
     let num_slides = rng.gen_range(3..=5);
     let slides = generate_buzzword_slides(num_slides, y_max as usize);
     let num_slides = slides.len(); // We may add an ending slide
     let mut slide_content = slides.iter();
     let mut slide_n = 0;
     loop {
-        let color = match colors.pop_front() {
-            // Keep cycling through our colors.  TODO: This seems okay, but maybe there's a cleaner way.
-            // Don't want random, because we want to make sure border changes on every slide change
-            Some(c) => {
-                colors.push_back(c);
-                c
-            }
-            _ => unreachable!("Deque emptied, that shouldn't happen."),
-        };
+        let color = colors[slide_n % num_colors];
         match slide_content.next() {
             None => break,
             Some(slide) => {
