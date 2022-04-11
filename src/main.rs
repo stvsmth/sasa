@@ -15,7 +15,7 @@ use std::{
 };
 
 const DRAW_CH: char = '*';
-
+const MIN_ASCII_ART_HEIGHT: usize = 12;
 const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
@@ -168,7 +168,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
 
     let color = colors[slides.len() % colors.len()];
     lines.push(Line {
-        y: (y + 1) as u16,
+        y: (y - 1) as u16,
         content: "The end".to_string(),
         animate: None,
         color,
@@ -190,15 +190,13 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     let mut lines: Vec<Line> = vec![];
 
     // .. generate TODO as ascii art
-    let height: f32 = (max_height - todo_lines_count) as f32 / 1.5;
-    let needed_height: usize = height as usize + todo_lines_count;
-
-    let c2d = string2ascii(header, height, DRAW_CH, Option::None, None).unwrap();
+    let height = max_height - todo_lines_count - (CONTENT_MARGIN * 2) as usize;
+    let c2d = string2ascii(header, height as f32, DRAW_CH, Option::None, None).unwrap();
     let todo_art = c2d.to_lines();
     let needed_width = todo_art
         .iter()
         .fold(std::usize::MIN, |x, line| x.max(line.len()));
-    if needed_height > max_height || needed_width > max_width {
+    if height <= MIN_ASCII_ART_HEIGHT  || needed_width > max_width {
         lines.push(Line {
             y: CONTENT_MARGIN,
             content: header.to_string(),
@@ -216,7 +214,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     }
 
     // ... compute the starting point and add the actual text
-    let mut y = lines.len() as u16 + CONTENT_MARGIN;
+    let mut y = lines.len() as u16 + CONTENT_MARGIN + 2;
     for line in todo_lines {
         y += 1;
         lines.push(Line {

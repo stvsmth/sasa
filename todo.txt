@@ -9,6 +9,7 @@ What's next
 * Slowly build up an editor?
 
 Other
+* Automatically overflow text onto new slide (with `cont'd` header)
 * Figure out how to go backward!!!!
 * Make char used to draw string2ascii an option
 * Setup CI: build win,unix,mac binaries
