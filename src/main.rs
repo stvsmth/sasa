@@ -19,6 +19,7 @@ const DRAW_CH: char = '*';
 const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
+#[derive(Clone, Debug)]
 struct Line {
     y: u16,
     content: String,
@@ -96,7 +97,7 @@ fn main() -> Result<()> {
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
                         // Draw the footer, but not on the last slide
-                        } else if y == y_max - CONTENT_MARGIN + 1  {
+                        } else if y == y_max - CONTENT_MARGIN + 1 {
                             let footer = format!("{} of {}", slide_n, num_slides);
                             stdout
                                 .queue(cursor::MoveTo(x_max - 12, y))?
@@ -143,60 +144,68 @@ fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Li
         slides.push(lines);
     }
 
+    // /////////////////////////////////////////////////////////////////////////////////////////////////////
     // Add a `The End` slide
-    let height = (max_height / 2) as f32;
+    let height = (max_height as f32 / 2.5) as f32;
     let now = Local::now();
     let message = format!("{}", now.format("%H:%M"));
     let c2d = string2ascii(message.as_str(), height, DRAW_CH, Option::None, None).unwrap();
-    let ascii_lines = c2d.to_lines();
-    let num_lines = ascii_lines.len();
-    let mut y = (max_height / 2) - (num_lines / 2);
+    let time_art = c2d.to_lines();
+    let num_lines = time_art.len();
+    let y = (max_height / 2) - (num_lines / 2);
     let mut lines = Vec::with_capacity(num_lines + 1);
 
     lines.push(Line {
-        y: (y - 1) as u16,
+        y: y as u16,
         content: "The end".to_string(),
         is_animated: false,
         animation_rate: 0,
     });
-    y += 1;
-    for line in ascii_lines {
-        // image2ascii will contain space above/below to allow for ascender/descenders
-        // trim that out if we are not using those values, it will throw off centering
-        let mut candidate = line.clone();
-        candidate.retain(|c| !c.is_whitespace());
-        if candidate.is_empty() {
-            continue;
-        }
-
-        lines.push(Line {
-            y: y as u16,
-            content: line,
-            is_animated: true,
-            animation_rate: 1,
-        });
-        y += 1;
-    }
+    lines.extend(gen_lines_from_ascii(y + 2, time_art, true));
     slides.push(lines);
 
+    // /////////////////////////////////////////////////////////////////////////////////////////////////////
     // Add ToDo slide
-    let todo_text: String = read_todo();
-    let todo_lines: Vec<&str> = todo_text.split('\n').into_iter().collect();
-    let num_lines = todo_lines.len();
-    let mut y = (max_height / 2) - (num_lines / 2);
-    let mut lines = Vec::with_capacity(num_lines);
+    // ... bullet points et al, compute height first, even though they're displayed last
+    let header = "TODO!";
+    let todo_lines: Vec<String> = read_todo()
+        .split('\n')
+        .into_iter()
+        .map(|l| l.to_string())
+        .collect();
+    let todo_lines_count = todo_lines.len();
+    let mut lines: Vec<Line> = vec![];
 
+    // .. generate TODO as ascii art
+    let height: f32 = (max_height - todo_lines_count) as f32 / 1.5;
+    if height as usize + todo_lines_count + (2 * CONTENT_MARGIN as usize) > max_height {
+        lines.push(Line {
+            y: CONTENT_MARGIN,
+            content: header.to_string(),
+            is_animated: false,
+            animation_rate: 0,
+        });
+    } else {
+        let c2d = string2ascii(header, height, DRAW_CH, Option::None, None).unwrap();
+        let todo_art = c2d.to_lines();
+
+        // ... add the ascii art to the slide, starting at top
+        lines.extend(gen_lines_from_ascii(2, todo_art, false));
+    }
+
+    // ... compute the starting point and add the actual text
+    let mut y = lines.last().unwrap().y + CONTENT_MARGIN;
     for line in todo_lines {
         lines.push(Line {
             y: y as u16,
-            content: line.to_string(),
+            content: line,
             is_animated: false,
             animation_rate: 0,
         });
         y += 1;
     }
+
     slides.push(lines);
-    
     slides
 }
 
@@ -210,4 +219,27 @@ fn generate_buzzword_phrase(with_bullet: bool) -> String {
 
 fn read_todo() -> String {
     fs::read_to_string("todo.txt").expect("Need a todo.txt file for our presentation.")
+}
+
+fn gen_lines_from_ascii(mut y: usize, ascii_lines: Vec<String>, animate: bool) -> Vec<Line> {
+    // FIXME: Make animate an enum
+    let mut lines = vec![];
+    for line in ascii_lines {
+        // image2ascii will contain space above/below to allow for ascender/descenders
+        // trim that out if we are not using those values, it will throw off centering
+        let mut candidate = line.clone();
+        candidate.retain(|c| !c.is_whitespace());
+        if candidate.is_empty() {
+            continue;
+        }
+
+        lines.push(Line {
+            y: y as u16,
+            content: line,
+            is_animated: animate,
+            animation_rate: if animate { 1 } else { 0 },
+        });
+        y += 1;
+    }
+    lines
 }
