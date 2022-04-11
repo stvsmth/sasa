@@ -37,43 +37,46 @@ fn main() -> Result<()> {
     let y_max = y_max - BOTTOM_OFFSET;
 
     let mut stdout = stdout();
-    stdout
-        .execute(terminal::Clear(terminal::ClearType::All))?
-        .execute(cursor::Hide)?;
+    stdout.execute(cursor::Hide)?;
 
     let slides = generate_buzzword_slides(x_max as usize, y_max as usize);
-    let num_slides = slides.len(); // We may add an ending slide
     let mut slide_content = slides.iter();
     let mut slide_n = 0;
     loop {
+        // Clear terminal for next slide display
+        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
         match slide_content.next() {
             None => break,
             Some(slide) => {
                 slide_n += 1;
-
-                let color = slide[0].color; // TODO: Taking first line color??
-                                            // Draw border
-                for y in 0..y_max {
-                    for x in 0..x_max {
-                        if (y == 0 || y == y_max - 1) || [0, 1, x_max - 2, x_max - 1].contains(&x) {
-                            stdout
-                                .queue(cursor::MoveTo(x, y))?
-                                .queue(style::PrintStyledContent("█".with(color)))?;
-                        }
-                    }
-                }
-                // Draw footer, then contents (in case we're animating)
-                draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides);
+                
+                // Draw static elements first ... then the contents, which may animate
+                draw_border(&mut stdout, x_max, y_max, slide)?;
+                draw_footer(&mut stdout, x_max, y_max, slide_n, slides.len())?;
                 draw_contents(&mut stdout, x_max, slide)?;
 
                 stdout.queue(style::Print("\n"))?;
                 stdout.flush()?;
+
                 match read()? {
                     Event::Key(_event) => (),
                     Event::Mouse(_event) => (),
                     Event::Resize(_width, _height) => (),
                 }
-                stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn draw_border(stdout: &mut Stdout, x_max: u16, y_max: u16, slide: &[Line]) -> Result<()> {
+    let color = slide[0].color; // TODO: Taking first line color??
+    for y in 0..y_max {
+        for x in 0..x_max {
+            if (y == 0 || y == y_max - 1) || [0, 1, x_max - 2, x_max - 1].contains(&x) {
+                stdout
+                    .queue(cursor::MoveTo(x, y))?
+                    .queue(style::PrintStyledContent("█".with(color)))?;
             }
         }
     }
@@ -107,13 +110,12 @@ fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> 
     Ok(())
 }
 
-fn draw_footer(stdout: &mut Stdout, x_max: u16, y_max: u16, n: usize, total: usize) {
+fn draw_footer(stdout: &mut Stdout, x_max: u16, y_max: u16, n: usize, total: usize) -> Result<()> {
     let footer = format!("{n} of {total}", n = n, total = total);
     stdout
-        .queue(cursor::MoveTo(x_max - 12, y_max - 3))
-        .unwrap()
-        .queue(style::Print(footer.as_str()))
-        .unwrap();
+        .queue(cursor::MoveTo(x_max - 12, y_max - 3))?
+        .queue(style::Print(footer.as_str()))?;
+    Ok(())
 }
 
 fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line>> {
