@@ -51,13 +51,14 @@ fn main() -> Result<()> {
             Some(slide) => {
                 slide_n += 1;
 
-                // Draw border
+                let color = slide[0].color; // TODO: Taking first line color??
+                                            // Draw border
                 for y in 0..y_max {
                     for x in 0..x_max {
                         if (y == 0 || y == y_max - 1) || [0, 1, x_max - 2, x_max - 1].contains(&x) {
                             stdout
                                 .queue(cursor::MoveTo(x, y))?
-                                .queue(style::PrintStyledContent("█".with(Color::Red)))?;
+                                .queue(style::PrintStyledContent("█".with(color)))?;
                         }
                     }
                 }
@@ -80,7 +81,7 @@ fn main() -> Result<()> {
 }
 
 fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> {
-    let color = slide[0].color;
+    let color = slide[0].color; // TODO: Taking first line color.
     for line in slide {
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
@@ -122,14 +123,14 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
 
     // Random color generation
     // TODO: Can we get color value of terminal and have dark vs light mode options?
-    // let colors = [
-    //     Color::Cyan,
-    //     Color::DarkMagenta,
-    //     Color::Green,
-    //     Color::Red,
-    //     Color::White,
-    //     Color::Yellow,
-    // ];
+    let colors = [
+        Color::Cyan,
+        Color::DarkMagenta,
+        Color::Green,
+        Color::Red,
+        Color::White,
+        Color::Yellow,
+    ];
 
     // Center the lines vertically ... Assume the max height is 20
     // ... if we have 2 lines of text, those lines will be at 9, 10
@@ -140,13 +141,14 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         let num_lines = rng.gen_range(2..=4);
         let mut y = (max_height / 2) - (num_lines / 2);
         let mut lines = Vec::with_capacity(num_lines);
+        let color = colors[i % colors.len()];
         for j in 0..=num_lines {
             let with_bullet = j != 0;
             lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
                 animate: if i > 2 { Some(Animate::On(8)) } else { None },
-                color: Color::Red,
+                color,
             });
             y += 1;
         }
@@ -164,18 +166,20 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     let y = (max_height / 2) - (num_lines / 2);
     let mut lines = Vec::with_capacity(num_lines + 1);
 
+    let color = colors[slides.len() % colors.len()];
     lines.push(Line {
         y: (y + 1) as u16,
         content: "The end".to_string(),
         animate: None,
-        color: Color::Red,
+        color,
     });
-    lines.extend(gen_lines_from_ascii(y + 2, time_art, true));
+    lines.extend(gen_lines_from_ascii(y + 2, time_art, true, color));
     slides.push(lines);
 
     // /////////////////////////////////////////////////////////////////////////////////////////////////////
     // Add ToDo slide
     // ... bullet points et al, compute height first, even though they're displayed last
+    let color = colors[slides.len() % colors.len()];
     let header = "TODO!";
     let todo_lines: Vec<String> = read_todo()
         .split('\n')
@@ -199,11 +203,16 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
             y: CONTENT_MARGIN,
             content: header.to_string(),
             animate: None,
-            color: Color::Red,
+            color,
         });
     } else {
         // ... add the ascii art to the slide, starting at top
-        lines.extend(gen_lines_from_ascii(CONTENT_MARGIN.into(), todo_art, false));
+        lines.extend(gen_lines_from_ascii(
+            CONTENT_MARGIN.into(),
+            todo_art,
+            false,
+            color,
+        ));
     }
 
     // ... compute the starting point and add the actual text
@@ -214,7 +223,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
             y,
             content: line,
             animate: None,
-            color: Color::Red,
+            color,
         });
     }
 
@@ -254,7 +263,7 @@ fn gen_lines_from_ascii(
             y: y as u16,
             content: line,
             animate: if animate { Some(Animate::On(1)) } else { None },
-            color: Color::Red,
+            color,
         });
         y += 1;
     }
