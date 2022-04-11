@@ -20,11 +20,15 @@ const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
 #[derive(Clone, Debug)]
+enum Animate {
+    On(u64),
+}
+
+#[derive(Clone, Debug)]
 struct Line {
     y: u16,
     content: String,
-    is_animated: bool,
-    animation_rate: u64,
+    animate: Option<Animate>,
     color: Color,
 }
 
@@ -80,12 +84,12 @@ fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> 
     for line in slide {
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
-            if line.is_animated {
+            if let Some(Animate::On(rate)) = line.animate {
                 stdout
                     .queue(cursor::MoveTo(x, line.y))?
                     .queue(style::PrintStyledContent("█".with(line.color)))?;
                 stdout.flush()?;
-                thread::sleep(time::Duration::from_millis(line.animation_rate));
+                thread::sleep(time::Duration::from_millis(rate));
             }
             stdout
                 .queue(cursor::MoveTo(x, line.y))?
@@ -141,8 +145,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
             lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
-                is_animated: i > 2,
-                animation_rate: 8,
+                animate: if i > 2 { Some(Animate::On(8)) } else { None },
                 color: Color::Red,
             });
             y += 1;
@@ -164,8 +167,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     lines.push(Line {
         y: (y + 1) as u16,
         content: "The end".to_string(),
-        is_animated: false,
-        animation_rate: 0,
+        animate: None,
         color: Color::Red,
     });
     lines.extend(gen_lines_from_ascii(y + 2, time_art, true));
@@ -196,8 +198,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         lines.push(Line {
             y: CONTENT_MARGIN,
             content: header.to_string(),
-            is_animated: false,
-            animation_rate: 0,
+            animate: None,
             color: Color::Red,
         });
     } else {
@@ -212,8 +213,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         lines.push(Line {
             y,
             content: line,
-            is_animated: false,
-            animation_rate: 0,
+            animate: None,
             color: Color::Red,
         });
     }
@@ -234,8 +234,12 @@ fn read_todo() -> String {
     fs::read_to_string("todo.txt").expect("Need a todo.txt file for our presentation.")
 }
 
-fn gen_lines_from_ascii(mut y: usize, ascii_lines: Vec<String>, animate: bool) -> Vec<Line> {
-    // FIXME: Make animate an enum
+fn gen_lines_from_ascii(
+    mut y: usize,
+    ascii_lines: Vec<String>,
+    animate: bool,
+    color: Color,
+) -> Vec<Line> {
     let mut lines = vec![];
     for line in ascii_lines {
         // image2ascii will contain space above/below to allow for ascender/descenders
@@ -249,8 +253,7 @@ fn gen_lines_from_ascii(mut y: usize, ascii_lines: Vec<String>, animate: bool) -
         lines.push(Line {
             y: y as u16,
             content: line,
-            is_animated: animate,
-            animation_rate: if animate { 1 } else { 0 },
+            animate: if animate { Some(Animate::On(1)) } else { None },
             color: Color::Red,
         });
         y += 1;
