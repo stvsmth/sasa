@@ -8,7 +8,7 @@ use crossterm::{
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
 use rand::Rng;
-use std::fs;
+use std::{fs, io::Stdout};
 use std::{
     io::{stdout, Write},
     thread, time,
@@ -96,15 +96,10 @@ fn main() -> Result<()> {
                                 .queue(cursor::MoveTo(x_max - 1, y))?
                                 .queue(style::PrintStyledContent("█".with(color)))?;
                             break;
-                        // Draw the footer, but not on the last slide
-                        } else if y == y_max - CONTENT_MARGIN + 1 {
-                            let footer = format!("{} of {}", slide_n, num_slides);
-                            stdout
-                                .queue(cursor::MoveTo(x_max - 12, y))?
-                                .queue(style::Print(footer.as_str()))?;
                         }
                     }
                 }
+                print_footer(&mut stdout, x_max, y_max, slide_n, num_slides);
                 stdout.queue(style::Print("\n"))?;
                 stdout.flush()?;
                 match read()? {
@@ -117,6 +112,15 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn print_footer(stdout:&mut Stdout, x_max: u16, y_max: u16, n: usize, total: usize) {
+    let footer = format!("{n} of {total}", n = n, total = total);
+    stdout
+        .queue(cursor::MoveTo(x_max - 12, y_max - 3))
+        .unwrap()
+        .queue(style::Print(footer.as_str()))
+        .unwrap();
 }
 
 fn generate_buzzword_slides(slide_count: usize, max_height: usize) -> Vec<Vec<Line>> {
