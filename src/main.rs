@@ -61,6 +61,9 @@ fn main() -> Result<()> {
                     || event.code == KeyCode::Char('n')
                 {
                     next_slide = slides.pop();
+                    if next_slide.is_some() {
+                        slide_n += 1;
+                    }
                 } else if event.code == KeyCode::Char('q')
                     || event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL
                 {
@@ -76,7 +79,6 @@ fn main() -> Result<()> {
         match next_slide {
             None => break,
             Some(slide) => {
-                slide_n += 1;
                 stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
                 // Draw static elements first ... then the contents, which may animate
@@ -225,7 +227,8 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
                 .iter()
                 .fold(std::usize::MIN, |x, line| x.max(line.len()));
             // We need to build the ascii art to get it's true height, check that against a sane minimum
-            if height <= MIN_ASCII_ART_HEIGHT || needed_width > max_width - CONTENT_MARGIN as usize {
+            if height <= MIN_ASCII_ART_HEIGHT || needed_width > max_width - CONTENT_MARGIN as usize
+            {
                 avoid_ascii_art = true;
             } else {
                 // ... add the ascii art to the slide, starting at top
