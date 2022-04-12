@@ -49,7 +49,7 @@ fn main() -> Result<()> {
             None => break,
             Some(slide) => {
                 slide_n += 1;
-                
+
                 // Draw static elements first ... then the contents, which may animate
                 draw_border(&mut stdout, x_max, y_max, slide)?;
                 draw_footer(&mut stdout, x_max, y_max, slide_n, slides.len())?;
@@ -198,7 +198,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     let needed_width = todo_art
         .iter()
         .fold(std::usize::MIN, |x, line| x.max(line.len()));
-    if height <= MIN_ASCII_ART_HEIGHT  || needed_width > max_width {
+    if height <= MIN_ASCII_ART_HEIGHT || needed_width > max_width {
         lines.push(Line {
             y: CONTENT_MARGIN,
             content: header.to_string(),
