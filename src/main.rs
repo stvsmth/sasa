@@ -207,39 +207,52 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     // ... bullet points et al, compute height first, even though they're displayed last
     let color = colors[slides.len() % colors.len()];
     let header = "TODO!";
+    let mut avoid_ascii_art = false;
     let todo_lines: Vec<String> = read_todo()
         .split('\n')
         .into_iter()
         .map(|l| l.to_string())
         .collect();
-    let todo_lines_count = todo_lines.len();
+    let needed_space = todo_lines.len() + (CONTENT_MARGIN as usize * 2);
     let mut lines: Vec<Line> = vec![];
 
-    // .. generate TODO as ascii art
-    let height = max_height - todo_lines_count - (CONTENT_MARGIN * 2) as usize;
-    let c2d = string2ascii(header, height as f32, DRAW_CH, Option::None, None).unwrap();
-    let todo_art = c2d.to_lines();
-    let needed_width = todo_art
-        .iter()
-        .fold(std::usize::MIN, |x, line| x.max(line.len()));
-    if height <= MIN_ASCII_ART_HEIGHT || needed_width > max_width {
+    // Draw ascii art for the header, if we have height & width
+    match max_height.checked_sub(needed_space) {
+        Some(height) => {
+            let c2d = string2ascii(header, height as f32, DRAW_CH, Option::None, None).unwrap();
+            let todo_art = c2d.to_lines();
+            let needed_width = todo_art
+                .iter()
+                .fold(std::usize::MIN, |x, line| x.max(line.len()));
+            // We need to build the ascii art to get it's true height, check that against a sane minimum
+            if height <= MIN_ASCII_ART_HEIGHT || needed_width > max_width - CONTENT_MARGIN as usize {
+                avoid_ascii_art = true;
+            } else {
+                // ... add the ascii art to the slide, starting at top
+                lines.extend(gen_lines_from_ascii(
+                    CONTENT_MARGIN.into(),
+                    todo_art,
+                    false,
+                    color,
+                ));
+            }
+        }
+        // Underflow, we really don't have space
+        None => avoid_ascii_art = true,
+    };
+
+    // If we don't have space for ascii art, just render it as its own line TODO: Add bold/underline/???
+    if avoid_ascii_art {
         lines.push(Line {
             y: CONTENT_MARGIN,
             content: header.to_string(),
             animate: None,
             color,
         });
-    } else {
-        // ... add the ascii art to the slide, starting at top
-        lines.extend(gen_lines_from_ascii(
-            CONTENT_MARGIN.into(),
-            todo_art,
-            false,
-            color,
-        ));
     }
 
-    // ... compute the starting point and add the actual text
+    // Dump the contents of this slide
+    // TODO: Handle text overflow (it currently just scrolls off screen ...)
     let mut y = lines.len() as u16 + CONTENT_MARGIN + 2;
     for line in todo_lines {
         y += 1;
