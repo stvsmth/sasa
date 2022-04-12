@@ -55,7 +55,6 @@ fn main() -> Result<()> {
                 draw_footer(&mut stdout, x_max, y_max, slide_n, slides.len())?;
                 draw_contents(&mut stdout, x_max, slide)?;
 
-                stdout.queue(style::Print("\n"))?;
                 stdout.flush()?;
 
                 match read()? {
