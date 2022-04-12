@@ -1,14 +1,14 @@
 use chrono::Local;
 use crossterm::{
     cursor,
-    event::{read, Event},
+    event::{read, Event, KeyCode, KeyModifiers},
     style::{self, Color, Stylize},
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
 use rand::Rng;
-use std::{fs, io::Stdout};
+use std::{fs, io::Stdout, process::exit};
 use std::{
     io::{stdout, Write},
     thread, time,
@@ -33,38 +33,63 @@ struct Line {
 }
 
 fn main() -> Result<()> {
-    let (x_max, y_max) = terminal::size()?;
-    let y_max = y_max - BOTTOM_OFFSET;
+    terminal::enable_raw_mode()?;
+
+    let (x_max, y_max_abs) = terminal::size()?;
+    let y_max = y_max_abs - BOTTOM_OFFSET;
 
     let mut stdout = stdout();
     stdout.execute(cursor::Hide)?;
+    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, y_max / 2))?
+        .queue(style::Print("Ready to start\n"))?;
+    stdout.flush()?;
 
-    let slides = generate_buzzword_slides(x_max as usize, y_max as usize);
-    let mut slide_content = slides.iter();
+    let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
+    let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
+    let mut next_slide: Option<&Vec<Line>> = None;
+
     let mut slide_n = 0;
+    let num_slides = slides.len();
     loop {
         // Clear terminal for next slide display
-        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-        match slide_content.next() {
+        match read()? {
+            Event::Key(event) => {
+                if event.code == KeyCode::Char(' ')
+                    || event.code == KeyCode::Enter
+                    || event.code == KeyCode::Char('n')
+                {
+                    next_slide = slides.pop();
+                } else if event.code == KeyCode::Char('q')
+                    || event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL
+                {
+                    stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
+                    terminal::disable_raw_mode()?;
+                    exit(0);
+                }
+            }
+            _ => continue,
+            // Event::Mouse(_event) => (),
+            // Event::Resize(_width, _height) => (),
+        }
+        match next_slide {
             None => break,
             Some(slide) => {
                 slide_n += 1;
+                stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
                 // Draw static elements first ... then the contents, which may animate
                 draw_border(&mut stdout, x_max, y_max, slide)?;
-                draw_footer(&mut stdout, x_max, y_max, slide_n, slides.len())?;
+                draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
                 draw_contents(&mut stdout, x_max, slide)?;
-
+                // .. leave the cursor on the last row
+                stdout.queue(cursor::MoveTo(0, y_max_abs))?;
                 stdout.flush()?;
-
-                match read()? {
-                    Event::Key(_event) => (),
-                    Event::Mouse(_event) => (),
-                    Event::Resize(_width, _height) => (),
-                }
             }
         }
     }
+    terminal::disable_raw_mode()?;
     Ok(())
 }
 
