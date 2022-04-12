@@ -11,6 +11,8 @@ use rand::Rng;
 use std::{fs, io::Stdout, process::exit};
 use std::{
     io::{stdout, Write},
+    sync::atomic::{AtomicUsize, Ordering},
+    sync::Arc,
     thread, time,
 };
 
@@ -33,11 +35,21 @@ struct Line {
 }
 
 fn main() -> Result<()> {
-    terminal::enable_raw_mode()?;
+    // Timer init
+    let timer = timer::Timer::new();
+    let num_seconds = Arc::new(AtomicUsize::new(0));
+    let num_seconds_clone = Arc::clone(&num_seconds);
+    let _guard = {
+        // have to keep the guard around, once it is dropped, timer stops
+        timer.schedule_repeating(chrono::Duration::seconds(1), move || {
+            num_seconds_clone.fetch_add(1, Ordering::SeqCst);
+        })
+    };
 
+    // Terminal init
+    terminal::enable_raw_mode()?;
     let (x_max, y_max_abs) = terminal::size()?;
     let y_max = y_max_abs - BOTTOM_OFFSET;
-
     let mut stdout = stdout();
     stdout.execute(cursor::Hide)?;
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
@@ -46,14 +58,14 @@ fn main() -> Result<()> {
         .queue(style::Print("Ready to start\n"))?;
     stdout.flush()?;
 
+    // Slides init
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
     let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
     let mut next_slide: Option<&Vec<Line>> = None;
-
+    let mut suppress_animation = false; // flag to allow redrawing of content. Lame? yes!
     let mut slide_n = 0;
     let num_slides = slides.len();
     loop {
-        // Clear terminal for next slide display
         match read()? {
             Event::Key(event) => {
                 if event.code == KeyCode::Char(' ')
@@ -64,6 +76,22 @@ fn main() -> Result<()> {
                     if next_slide.is_some() {
                         slide_n += 1;
                     }
+                    // Clear screen here so we can inject some content via other key events
+                    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+                } else if event.code == KeyCode::Char('/') {
+                    suppress_animation = true;
+                    let curr_seconds = num_seconds.load(Ordering::SeqCst);
+                    let curr_seconds_str = format!(
+                        "Elapsed time: {}:{:02}",
+                        curr_seconds / 60,
+                        curr_seconds % 60
+                    );
+                    stdout
+                        .queue(cursor::MoveTo(
+                            x_max - curr_seconds_str.len() as u16 - CONTENT_MARGIN - 2,
+                            y_max + 1,
+                        ))?
+                        .queue(style::Print(curr_seconds_str))?;
                 } else if event.code == KeyCode::Char('q')
                     || event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL
                 {
@@ -79,12 +107,10 @@ fn main() -> Result<()> {
         match next_slide {
             None => break,
             Some(slide) => {
-                stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-
                 // Draw static elements first ... then the contents, which may animate
                 draw_border(&mut stdout, x_max, y_max, slide)?;
                 draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
-                draw_contents(&mut stdout, x_max, slide)?;
+                draw_contents(&mut stdout, x_max, slide, suppress_animation)?;
                 // .. leave the cursor on the last row
                 stdout.queue(cursor::MoveTo(0, y_max_abs))?;
                 stdout.flush()?;
@@ -109,17 +135,24 @@ fn draw_border(stdout: &mut Stdout, x_max: u16, y_max: u16, slide: &[Line]) -> R
     Ok(())
 }
 
-fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> {
+fn draw_contents(
+    stdout: &mut Stdout,
+    x_max: u16,
+    slide: &[Line],
+    suppress_animation: bool,
+) -> Result<()> {
     let color = slide[0].color; // TODO: Taking first line color.
     for line in slide {
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
-            if let Some(Animate::On(rate)) = line.animate {
-                stdout
-                    .queue(cursor::MoveTo(x, line.y))?
-                    .queue(style::PrintStyledContent("█".with(line.color)))?;
-                stdout.flush()?;
-                thread::sleep(time::Duration::from_millis(rate));
+            if !suppress_animation {
+                if let Some(Animate::On(rate)) = line.animate {
+                    stdout
+                        .queue(cursor::MoveTo(x, line.y))?
+                        .queue(style::PrintStyledContent("█".with(line.color)))?;
+                    stdout.flush()?;
+                    thread::sleep(time::Duration::from_millis(rate));
+                }
             }
             stdout
                 .queue(cursor::MoveTo(x, line.y))?
