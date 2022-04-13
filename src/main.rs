@@ -11,8 +11,6 @@ use rand::Rng;
 use std::{fs, io::Stdout, process::exit};
 use std::{
     io::{stdout, Write},
-    sync::atomic::{AtomicUsize, Ordering},
-    sync::Arc,
     thread, time,
 };
 
@@ -36,15 +34,7 @@ struct Line {
 
 fn main() -> Result<()> {
     // Timer init
-    let timer = timer::Timer::new();
-    let num_seconds = Arc::new(AtomicUsize::new(0));
-    let num_seconds_clone = Arc::clone(&num_seconds);
-    let _guard = {
-        // have to keep the guard around, once it is dropped, timer stops
-        timer.schedule_repeating(chrono::Duration::seconds(1), move || {
-            num_seconds_clone.fetch_add(1, Ordering::SeqCst);
-        })
-    };
+    let start_ts = time::Instant::now();
 
     // Terminal init
     terminal::enable_raw_mode()?;
@@ -80,18 +70,15 @@ fn main() -> Result<()> {
                     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
                 } else if event.code == KeyCode::Char('/') {
                     suppress_animation = true;
-                    let curr_seconds = num_seconds.load(Ordering::SeqCst);
-                    let curr_seconds_str = format!(
-                        "Elapsed time: {}:{:02}",
-                        curr_seconds / 60,
-                        curr_seconds % 60
-                    );
+                    let curr_ts = time::Instant::now();
+                    let elapsed = (curr_ts - start_ts).as_secs();
+                    let curr_ts_str = format!("Elapsed time: {}:{:02}", elapsed / 60, elapsed % 60);
                     stdout
                         .queue(cursor::MoveTo(
-                            x_max - curr_seconds_str.len() as u16 - CONTENT_MARGIN - 2,
+                            x_max - curr_ts_str.len() as u16 - CONTENT_MARGIN - 2,
                             y_max + 1,
                         ))?
-                        .queue(style::Print(curr_seconds_str))?;
+                        .queue(style::Print(curr_ts_str))?;
                 } else if event.code == KeyCode::Char('q')
                     || event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL
                 {
@@ -146,7 +133,7 @@ fn draw_contents(
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
             if !suppress_animation {
-                if let Some(Animate{rate}) = line.animate {
+                if let Some(Animate { rate }) = line.animate {
                     stdout
                         .queue(cursor::MoveTo(x, line.y))?
                         .queue(style::PrintStyledContent("█".with(line.color)))?;
@@ -208,7 +195,11 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
             lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
-                animate: if i > 2 { Some(Animate{rate: 8}) } else { None },
+                animate: if i > 2 {
+                    Some(Animate { rate: 8 })
+                } else {
+                    None
+                },
                 color,
             });
             y += 1;
@@ -335,7 +326,11 @@ fn gen_lines_from_ascii(
         lines.push(Line {
             y: y as u16,
             content: line,
-            animate: if animate { Some(Animate{rate: 1}) } else { None },
+            animate: if animate {
+                Some(Animate { rate: 1 })
+            } else {
+                None
+            },
             color,
         });
         y += 1;
