@@ -22,8 +22,8 @@ const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
 #[derive(Clone, Debug)]
-enum Animate {
-    On(u64),
+struct Animate {
+    rate: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -146,7 +146,7 @@ fn draw_contents(
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
             if !suppress_animation {
-                if let Some(Animate::On(rate)) = line.animate {
+                if let Some(Animate{rate}) = line.animate {
                     stdout
                         .queue(cursor::MoveTo(x, line.y))?
                         .queue(style::PrintStyledContent("█".with(line.color)))?;
@@ -208,7 +208,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
             lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
-                animate: if i > 2 { Some(Animate::On(8)) } else { None },
+                animate: if i > 2 { Some(Animate{rate: 8}) } else { None },
                 color,
             });
             y += 1;
@@ -335,7 +335,7 @@ fn gen_lines_from_ascii(
         lines.push(Line {
             y: y as u16,
             content: line,
-            animate: if animate { Some(Animate::On(1)) } else { None },
+            animate: if animate { Some(Animate{rate: 1}) } else { None },
             color,
         });
         y += 1;
