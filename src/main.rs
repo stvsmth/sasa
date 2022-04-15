@@ -1,4 +1,3 @@
-use chrono::Local;
 use crossterm::{
     cursor,
     event::{poll, read, Event, KeyCode, KeyModifiers},
@@ -49,9 +48,8 @@ fn main() -> Result<()> {
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
     let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
     let mut next_slide: Option<&Vec<Line>>;
-    let mut start_ts: time::Instant = time::Instant::now();
+    let start_ts: time::Instant = time::Instant::now();
     let mut display_elapsed_time = false;
-    let mut is_started = false;
     let mut slide_n = 0;
     let num_slides = slides.len();
     loop {
@@ -62,17 +60,15 @@ fn main() -> Result<()> {
                         || event.code == KeyCode::Enter
                         || event.code == KeyCode::Char('n')
                     {
-                        // TODO: Not thrilled with this, Once seems like overkill, investigate more.
-                        if !is_started {
-                            start_ts = time::Instant::now();
-                            is_started = true;
-                        }
                         next_slide = slides.pop();
                         if next_slide.is_some() {
                             slide_n += 1;
                         }
-                        // Clear screen here so we can inject some content via other key events
+                        // Setup terminal ... do this in loop in case we come back via SIGCONT
                         stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+                        terminal::enable_raw_mode()?;
+                        stdout.execute(cursor::Hide)?;
+
                         match next_slide {
                             None => break,
                             Some(slide) => {
@@ -87,6 +83,13 @@ fn main() -> Result<()> {
                         }
                     } else if event.code == KeyCode::Char('t') {
                         display_elapsed_time = !display_elapsed_time;
+                    } else if event.code == KeyCode::Char('z')
+                        && event.modifiers == KeyModifiers::CONTROL
+                    {
+                        stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
+                        terminal::disable_raw_mode()?;
+                        nix::sys::signal::kill(nix::unistd::getpid(), nix::sys::signal::SIGSTOP)
+                            .unwrap();
                     } else if event.code == KeyCode::Char('q')
                         || event.code == KeyCode::Char('c')
                             && event.modifiers == KeyModifiers::CONTROL
@@ -172,7 +175,7 @@ fn draw_footer(stdout: &mut Stdout, x_max: u16, y_max: u16, n: usize, total: usi
 
 fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line>> {
     let mut rng = rand::thread_rng();
-    let slide_count = rng.gen_range(3..=5);
+    let slide_count = rng.gen_range(3..=7);
     let mut slides = Vec::with_capacity(slide_count);
 
     // Random color generation
@@ -212,27 +215,6 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         }
         slides.push(lines);
     }
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Add a `The End` slide
-    let height = (max_height as f32 / 2.5).round();
-    let now = Local::now();
-    let message = format!("{}", now.format("%H:%M"));
-    let c2d = string2ascii(message.as_str(), height, DRAW_CH, Option::None, None).unwrap();
-    let time_art = c2d.to_lines();
-    let num_lines = time_art.len();
-    let y = (max_height / 2) - (num_lines / 2);
-    let mut lines = Vec::with_capacity(num_lines + 1);
-
-    let color = colors[slides.len() % colors.len()];
-    lines.push(Line {
-        y: (y - 1) as u16,
-        content: "The end".to_string(),
-        animate: None,
-        color,
-    });
-    lines.extend(gen_lines_from_ascii(y + 2, time_art, true, color));
-    slides.push(lines);
 
     // /////////////////////////////////////////////////////////////////////////////////////////////////////
     // Add ToDo slide
@@ -298,6 +280,19 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     }
 
     slides.push(lines);
+
+    // /////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Add a `The End` slide
+    let height = (max_height as f32 / 2.5).round();
+    let c2d = string2ascii("THE END", height, DRAW_CH, Option::None, None).unwrap();
+    let the_end_art = c2d.to_lines();
+    let num_lines = the_end_art.len();
+    let y = (max_height / 2) - (num_lines / 2);
+
+    let color = colors[slides.len() % colors.len()];
+    lines = gen_lines_from_ascii(y + 2, the_end_art, true, color);
+    slides.push(lines);
+
     slides
 }
 
