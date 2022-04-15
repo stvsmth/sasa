@@ -1,7 +1,7 @@
 use chrono::Local;
 use crossterm::{
     cursor,
-    event::{read, Event, KeyCode, KeyModifiers},
+    event::{poll, read, Event, KeyCode, KeyModifiers},
     style::{self, Color, Stylize},
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
@@ -33,9 +33,6 @@ struct Line {
 }
 
 fn main() -> Result<()> {
-    // Timer init
-    let start_ts = time::Instant::now();
-
     // Terminal init
     terminal::enable_raw_mode()?;
     let (x_max, y_max_abs) = terminal::size()?;
@@ -51,58 +48,74 @@ fn main() -> Result<()> {
     // Slides init
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
     let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
-    let mut next_slide: Option<&Vec<Line>> = None;
-    let mut suppress_animation = false; // flag to allow redrawing of content. Lame? yes!
+    let mut next_slide: Option<&Vec<Line>>;
+    let mut start_ts: time::Instant = time::Instant::now();
+    let mut display_elapsed_time = false;
+    let mut is_started = false;
     let mut slide_n = 0;
     let num_slides = slides.len();
     loop {
-        match read()? {
-            Event::Key(event) => {
-                if event.code == KeyCode::Char(' ')
-                    || event.code == KeyCode::Enter
-                    || event.code == KeyCode::Char('n')
-                {
-                    next_slide = slides.pop();
-                    if next_slide.is_some() {
-                        slide_n += 1;
+        if poll(time::Duration::from_millis(500))? {
+            match read()? {
+                Event::Key(event) => {
+                    if event.code == KeyCode::Char(' ')
+                        || event.code == KeyCode::Enter
+                        || event.code == KeyCode::Char('n')
+                    {
+                        // TODO: Not thrilled with this, Once seems like overkill, investigate more.
+                        if !is_started {
+                            start_ts = time::Instant::now();
+                            is_started = true;
+                        }
+                        next_slide = slides.pop();
+                        if next_slide.is_some() {
+                            slide_n += 1;
+                        }
+                        // Clear screen here so we can inject some content via other key events
+                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+                        match next_slide {
+                            None => break,
+                            Some(slide) => {
+                                // Draw static elements first ... then the contents, which may animate
+                                draw_border(&mut stdout, x_max, y_max, slide)?;
+                                draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
+                                draw_contents(&mut stdout, x_max, slide)?;
+                                // .. leave the cursor on the last row
+                                stdout.queue(cursor::MoveTo(0, y_max_abs))?;
+                                stdout.flush()?;
+                            }
+                        }
+                    } else if event.code == KeyCode::Char('t') {
+                        display_elapsed_time = !display_elapsed_time;
+                    } else if event.code == KeyCode::Char('q')
+                        || event.code == KeyCode::Char('c')
+                            && event.modifiers == KeyModifiers::CONTROL
+                    {
+                        stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
+                        terminal::disable_raw_mode()?;
+                        exit(0);
                     }
-                    // Clear screen here so we can inject some content via other key events
-                    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-                } else if event.code == KeyCode::Char('/') {
-                    suppress_animation = true;
-                    let curr_ts = time::Instant::now();
-                    let elapsed = (curr_ts - start_ts).as_secs();
-                    let curr_ts_str = format!("Elapsed time: {}:{:02}", elapsed / 60, elapsed % 60);
-                    stdout
-                        .queue(cursor::MoveTo(
-                            x_max - curr_ts_str.len() as u16 - CONTENT_MARGIN - 2,
-                            y_max + 1,
-                        ))?
-                        .queue(style::Print(curr_ts_str))?;
-                } else if event.code == KeyCode::Char('q')
-                    || event.code == KeyCode::Char('c') && event.modifiers == KeyModifiers::CONTROL
-                {
-                    stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
-                    terminal::disable_raw_mode()?;
-                    exit(0);
                 }
-            }
-            _ => continue,
-            // Event::Mouse(_event) => (),
-            // Event::Resize(_width, _height) => (),
-        }
-        match next_slide {
-            None => break,
-            Some(slide) => {
-                // Draw static elements first ... then the contents, which may animate
-                draw_border(&mut stdout, x_max, y_max, slide)?;
-                draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
-                draw_contents(&mut stdout, x_max, slide, suppress_animation)?;
-                // .. leave the cursor on the last row
-                stdout.queue(cursor::MoveTo(0, y_max_abs))?;
-                stdout.flush()?;
+                _ => continue,
+                // Event::Mouse(_event) => (),
+                // Event::Resize(_width, _height) => (),
             }
         }
+        let curr_ts = time::Instant::now();
+        let elapsed = (curr_ts - start_ts).as_secs();
+        let mut curr_ts_str = format!("Elapsed time: {}:{:02}", elapsed / 60, elapsed % 60);
+        if !display_elapsed_time {
+            // overwrite previously displayed elapsed time with space chars
+            let elapsed_len = curr_ts_str.len();
+            curr_ts_str = (0..elapsed_len).map(|_| " ").collect::<String>();
+        }
+        stdout
+            .queue(cursor::MoveTo(
+                x_max - curr_ts_str.len() as u16 - CONTENT_MARGIN - 2,
+                y_max + 1,
+            ))?
+            .queue(style::Print(curr_ts_str))?;
+        stdout.flush()?;
     }
     terminal::disable_raw_mode()?;
     Ok(())
@@ -122,24 +135,17 @@ fn draw_border(stdout: &mut Stdout, x_max: u16, y_max: u16, slide: &[Line]) -> R
     Ok(())
 }
 
-fn draw_contents(
-    stdout: &mut Stdout,
-    x_max: u16,
-    slide: &[Line],
-    suppress_animation: bool,
-) -> Result<()> {
+fn draw_contents(stdout: &mut Stdout, x_max: u16, slide: &[Line]) -> Result<()> {
     let color = slide[0].color; // TODO: Taking first line color.
     for line in slide {
         let mut x = CONTENT_MARGIN;
         for ch in line.content.chars() {
-            if !suppress_animation {
-                if let Some(Animate { rate }) = line.animate {
-                    stdout
-                        .queue(cursor::MoveTo(x, line.y))?
-                        .queue(style::PrintStyledContent("█".with(line.color)))?;
-                    stdout.flush()?;
-                    thread::sleep(time::Duration::from_millis(rate));
-                }
+            if let Some(Animate { rate }) = line.animate {
+                stdout
+                    .queue(cursor::MoveTo(x, line.y))?
+                    .queue(style::PrintStyledContent("█".with(line.color)))?;
+                stdout.flush()?;
+                thread::sleep(time::Duration::from_millis(rate));
             }
             stdout
                 .queue(cursor::MoveTo(x, line.y))?
