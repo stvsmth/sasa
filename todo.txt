@@ -1,16 +1,16 @@
 Actually, reading a file is easy
-* Markdown should be doable, but it'll get tedious, fast ... 
+* Markdown should be doable, but it's a rabbit hole
+* There are other rabbit holes I want to explore first
 
 What's next
-* Add timer to footer (??? keep a background thread?)
-* Investigate iTerm, other options that allow display of images
-* Will investigate prior art at end of batch
-* Investigate plug-ins
+* Introduce slide navigation (backward/forward)
 * Slowly build up an editor?
+* Actually parse content. Choose MD & tweak? Custom format?
+  * Maybe, eventually agnostic ... yaml, json, etc
+* Will investigate "prior art" after batch, surely vim/emacs have tools like?
+* Investigate iTerm, other protocols that allow display of images
+* Investigate plug-ins for transitions
 
 Other
 * Automatically overflow text onto new slide (with `cont'd` header)
-* Figure out how to go backward!!!!
 * Make char used to draw string2ascii an option
-* Setup CI: build win,unix,mac binaries
-* Research adding features option to image2ascii for string2ascii only, submit PR
