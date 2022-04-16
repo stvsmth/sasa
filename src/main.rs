@@ -6,6 +6,7 @@ use crossterm::{
 };
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
+use nix::{sys::signal, unistd::getpid};
 use rand::Rng;
 use std::{fs, io::Stdout, process::exit};
 use std::{
@@ -48,7 +49,6 @@ fn main() -> Result<()> {
     // Slides init
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
     let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
-    let mut next_slide: Option<&Vec<Line>>;
     let start_ts: time::Instant = time::Instant::now();
     let mut display_elapsed_time = false;
     let mut slide_n = 0;
@@ -57,22 +57,20 @@ fn main() -> Result<()> {
         if poll(time::Duration::from_millis(500))? {
             match read()? {
                 Event::Key(event) => {
-                    if event.code == KeyCode::Char(' ')
-                        || event.code == KeyCode::Enter
+                    // ... advance to next slide (<space>, <enter>, n)
+                    if event.code == KeyCode::Enter
                         || event.code == KeyCode::Char('n')
+                        || event.code == KeyCode::Char(' ')
                     {
-                        next_slide = slides.pop();
-                        if next_slide.is_some() {
-                            slide_n += 1;
-                        }
-                        // Setup terminal ... do this in loop in case we come back via SIGCONT
+                        // ... setup terminal (in case we come back via SIGCONT)
                         stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-                        terminal::enable_raw_mode()?;
                         stdout.execute(cursor::Hide)?;
+                        terminal::enable_raw_mode()?;
 
-                        match next_slide {
+                        match slides.pop() {
                             None => break,
                             Some(slide) => {
+                                slide_n += 1;
                                 // Draw static elements first ... then the contents, which may animate
                                 draw_border(&mut stdout, x_max, y_max, slide)?;
                                 draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
@@ -82,20 +80,22 @@ fn main() -> Result<()> {
                                 stdout.flush()?;
                             }
                         }
+                    // ... toggle the timer (t)
                     } else if event.code == KeyCode::Char('t') {
                         display_elapsed_time = !display_elapsed_time;
+                    // ... suspend (ctrl-z) ... we have to handle "standard" commands in raw mode
                     } else if event.code == KeyCode::Char('z')
                         && event.modifiers == KeyModifiers::CONTROL
                     {
-                        stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
                         terminal::disable_raw_mode()?;
-                        nix::sys::signal::kill(nix::unistd::getpid(), nix::sys::signal::SIGSTOP)
-                            .unwrap();
+                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+                        signal::kill(getpid(), signal::SIGSTOP).unwrap();
+                    // ... quite (q, ctrl-c)
                     } else if event.code == KeyCode::Char('q')
                         || event.code == KeyCode::Char('c')
                             && event.modifiers == KeyModifiers::CONTROL
                     {
-                        stdout.execute(terminal::Clear(terminal::ClearType::All))?; // Maybe don't clear?
+                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
                         terminal::disable_raw_mode()?;
                         exit(0);
                     }
