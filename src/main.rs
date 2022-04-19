@@ -99,6 +99,7 @@ fn main() -> Result<()> {
                                     start_ts = time::Instant::now();
                                 }
 
+                                // if we come back in via SIGCONT we need to retake the terminal
                                 take_terminal(&mut stdout)?;
                                 slide_n += 1;
                                 // Draw static elements first ... then the contents, which may animate
@@ -120,8 +121,10 @@ fn main() -> Result<()> {
                     // ... TODO: next slide & prev slide cases are awfully similar
                     } else if event.code == KeyCode::Char('p') {
                         if let Some(slide) = prev_slides.pop() {
+                            // if we come back in via SIGCONT we need to retake the terminal
                             take_terminal(&mut stdout)?;
                             slide_n -= 1;
+
                             // Draw static elements first ... then the contents, which may animate
                             draw_border(&mut stdout, x_max, y_max, slide)?;
                             draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
