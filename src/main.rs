@@ -43,7 +43,7 @@ fn main() -> Result<()> {
     take_terminal(&mut stdout)?;
     let mut curr_y = y_max / 2;
 
-    // Display start screen (not a slide)
+    // Display start screen, with key binding descriptions (not a slide)
     stdout
         .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
         .queue(style::Print("Ready to start"))?;
@@ -60,6 +60,10 @@ fn main() -> Result<()> {
     curr_y += 1;
     stdout
         .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`t` to toggle elapsed time display"))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
         .queue(style::Print("`q` to quit presentation"))?;
     stdout.flush()?;
 
@@ -72,10 +76,10 @@ fn main() -> Result<()> {
     let num_slides = slides.len();
 
     // Timer init
-    let start_ts: time::Instant = time::Instant::now();
+    let mut start_ts: time::Instant = time::Instant::now();
     let mut display_elapsed_time = false;
+    let mut is_presentation_started = false;
 
-    // Event handler
     loop {
         if poll(time::Duration::from_millis(500))? {
             match read()? {
@@ -89,6 +93,12 @@ fn main() -> Result<()> {
                         match slides.pop() {
                             None => continue, // if there's no more slides, just stop on last slide
                             Some(slide) => {
+                                // Reset the timer once we've passed the start screen
+                                if !is_presentation_started {
+                                    is_presentation_started = true;
+                                    start_ts = time::Instant::now();
+                                }
+
                                 take_terminal(&mut stdout)?;
                                 slide_n += 1;
                                 // Draw static elements first ... then the contents, which may animate

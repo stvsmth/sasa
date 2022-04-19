@@ -2,13 +2,7 @@ Actually, reading a file is easy
 * Markdown should be doable, but it's a rabbit hole
 * There are other rabbit holes I want to explore first
 
-Main point
-* If you're stuck, maybe do something else ...
-* ... but be sure you go back to thing you're stuck on
-* Sometimes dumb ideas do have value
-
 What's next
-* Introduce slide navigation (backward/forward)
 * Slowly build up an editor?
 * Will investigate "prior art" after batch, surely vim/emacs have plugins for this?
 * Investigate iTerm, other protocols that allow display of images
