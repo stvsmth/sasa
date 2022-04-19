@@ -35,12 +35,13 @@ struct Line {
 
 fn main() -> Result<()> {
     // Terminal init
-    terminal::enable_raw_mode()?;
     let (x_max, y_max_abs) = terminal::size()?;
     let y_max = y_max_abs - BOTTOM_OFFSET;
     let mut stdout = stdout();
-    stdout.execute(cursor::Hide)?;
-    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+
+    // Clear terminal, hide cursor, enable raw mode
+    take_terminal(&mut stdout)?;
+
     stdout
         .queue(cursor::MoveTo(CONTENT_MARGIN, y_max / 2))?
         .queue(style::Print("Ready to start\n"))?;
@@ -49,36 +50,63 @@ fn main() -> Result<()> {
     // Slides init
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
     let mut slides: Vec<&Vec<Line>> = slides_input.iter().rev().collect();
-    let start_ts: time::Instant = time::Instant::now();
-    let mut display_elapsed_time = false;
+    let mut prev_slides: Vec<&Vec<Line>> = vec![];
+    let mut prev_slide: Option<&Vec<Line>> = None;
     let mut slide_n = 0;
     let num_slides = slides.len();
+
+    // Timer init
+    let start_ts: time::Instant = time::Instant::now();
+    let mut display_elapsed_time = false;
     loop {
         if poll(time::Duration::from_millis(500))? {
             match read()? {
                 Event::Key(event) => {
                     // ... advance to next slide (<space>, <enter>, n)
+                    // ... TODO: next slide & prev slide cases are awfully similar
                     if event.code == KeyCode::Enter
                         || event.code == KeyCode::Char('n')
                         || event.code == KeyCode::Char(' ')
                     {
-                        // ... setup terminal (in case we come back via SIGCONT)
-                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-                        stdout.execute(cursor::Hide)?;
-                        terminal::enable_raw_mode()?;
-
                         match slides.pop() {
-                            None => break,
+                            None => continue, // if there's no more slides, just stop on last slide
                             Some(slide) => {
+                                take_terminal(&mut stdout)?;
                                 slide_n += 1;
                                 // Draw static elements first ... then the contents, which may animate
                                 draw_border(&mut stdout, x_max, y_max, slide)?;
                                 draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
                                 draw_contents(&mut stdout, x_max, slide)?;
-                                // .. leave the cursor on the last row
-                                stdout.queue(cursor::MoveTo(0, y_max_abs))?;
                                 stdout.flush()?;
+
+                                // Push the previous slide onto the stack for navigating backward.
+                                // Note, this isn't the current slide because we would then navigate
+                                // back to the current slide before getting back to the actual previous slide
+                                if let Some(s) = prev_slide {
+                                    prev_slides.push(s);
+                                }
+                                prev_slide = Some(slide);
                             }
+                        }
+                    // ... go back one slide (p)
+                    // ... TODO: next slide & prev slide cases are awfully similar
+                    } else if event.code == KeyCode::Char('p') {
+                        if let Some(slide) = prev_slides.pop() {
+                            take_terminal(&mut stdout)?;
+                            slide_n -= 1;
+                            // Draw static elements first ... then the contents, which may animate
+                            draw_border(&mut stdout, x_max, y_max, slide)?;
+                            draw_footer(&mut stdout, x_max, y_max, slide_n, num_slides)?;
+                            draw_contents(&mut stdout, x_max, slide)?;
+                            stdout.flush()?;
+
+                            // Push the previous slide onto the stack for navigating backward.
+                            // Note, this isn't the current slide because we would then navigate
+                            // back to the current slide before getting back to the actual previous slide
+                            if let Some(s) = prev_slide {
+                                slides.push(s);
+                            }
+                            prev_slide = Some(slide);
                         }
                     // ... toggle the timer (t)
                     } else if event.code == KeyCode::Char('t') {
@@ -87,16 +115,14 @@ fn main() -> Result<()> {
                     } else if event.code == KeyCode::Char('z')
                         && event.modifiers == KeyModifiers::CONTROL
                     {
-                        terminal::disable_raw_mode()?;
-                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+                        release_terminal(&mut stdout)?;
                         signal::kill(getpid(), signal::SIGSTOP).unwrap();
-                    // ... quite (q, ctrl-c)
+                    // ... quit (q, ctrl-c)
                     } else if event.code == KeyCode::Char('q')
                         || event.code == KeyCode::Char('c')
                             && event.modifiers == KeyModifiers::CONTROL
                     {
-                        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
-                        terminal::disable_raw_mode()?;
+                        release_terminal(&mut stdout)?;
                         exit(0);
                     }
                 }
@@ -121,8 +147,6 @@ fn main() -> Result<()> {
             .queue(style::Print(curr_ts_str))?;
         stdout.flush()?;
     }
-    terminal::disable_raw_mode()?;
-    Ok(())
 }
 
 fn draw_border(stdout: &mut Stdout, x_max: u16, y_max: u16, slide: &[Line]) -> Result<()> {
@@ -171,6 +195,20 @@ fn draw_footer(stdout: &mut Stdout, x_max: u16, y_max: u16, n: usize, total: usi
     stdout
         .queue(cursor::MoveTo(x_max - 12, y_max - 3))?
         .queue(style::Print(footer.as_str()))?;
+    Ok(())
+}
+
+fn take_terminal(stdout: &mut Stdout) -> Result<()> {
+    // Take control of terminal, useful if we come back in via SIGCONT
+    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+    stdout.execute(cursor::Hide)?;
+    terminal::enable_raw_mode()?;
+    Ok(())
+}
+
+fn release_terminal(stdout: &mut Stdout) -> Result<()> {
+    stdout.execute(terminal::Clear(terminal::ClearType::All))?;
+    terminal::disable_raw_mode()?;
     Ok(())
 }
 
