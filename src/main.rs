@@ -41,10 +41,26 @@ fn main() -> Result<()> {
 
     // Clear terminal, hide cursor, enable raw mode
     take_terminal(&mut stdout)?;
+    let mut curr_y = y_max / 2;
 
+    // Display start screen (not a slide)
     stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, y_max / 2))?
-        .queue(style::Print("Ready to start\n"))?;
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("Ready to start"))?;
+    curr_y += 2;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print(
+            "`n` or `space` or `enter` to move to next slide",
+        ))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`p` move to previous slide"))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`q` to quit presentation"))?;
     stdout.flush()?;
 
     // Slides init
@@ -58,6 +74,8 @@ fn main() -> Result<()> {
     // Timer init
     let start_ts: time::Instant = time::Instant::now();
     let mut display_elapsed_time = false;
+
+    // Event handler
     loop {
         if poll(time::Duration::from_millis(500))? {
             match read()? {
