@@ -4,6 +4,8 @@ Command-line presentation tool. VERY alpha.
 
 Sasa is Swahili for "to present."
 
+![Demo screen cast](https://f004.backblazeb2.com/file/sasa-files/demo.gif)
+
 ## Known issues / Upcoming work
 
 * Only displays random catch-phrases. While humorous, this isn't very useful. Next
