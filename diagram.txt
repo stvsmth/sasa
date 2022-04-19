@@ -14,7 +14,3 @@
 +-------->+                  kernel                      +<-------+
           |                                              |
           +----------------------------------------------+
-
-Fantastical anomaly parking lot
-* Founders improvising spotlight
-* Server-based machine modelling
