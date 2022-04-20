@@ -33,4 +33,5 @@ But mostly it's a tool for exploring Rust first and displaying presentations sec
   * `https://github.com/kizitorashiro/image2ascii`
 * Generating ASCII diagrams
   * `https://monodraw.helftone.com` This program is reason enough to create
-    an online presentation tool. It's a Mac only tool, but I'm sure there are others.
+    an command-line presentation tool. It's a Mac only tool, but I'm sure there
+    are others.
