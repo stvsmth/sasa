@@ -74,7 +74,7 @@ jobs:
               os: ubuntu-20.04,
               use-cross: true,
             }
-          - { target: i686-pc-windows-msvc, os: windows-2019 }
+          # - { target: i686-pc-windows-msvc, os: windows-2019 }
           - {
               target: i686-unknown-linux-gnu,
               os: ubuntu-20.04,
@@ -86,8 +86,8 @@ jobs:
               use-cross: true,
             }
           - { target: x86_64-apple-darwin, os: macos-10.15 }
-          - { target: x86_64-pc-windows-gnu, os: windows-2019 }
-          - { target: x86_64-pc-windows-msvc, os: windows-2019 }
+          # - { target: x86_64-pc-windows-gnu, os: windows-2019 }
+          # - { target: x86_64-pc-windows-msvc, os: windows-2019 }
           - { target: x86_64-unknown-linux-gnu, os: ubuntu-20.04 }
           - {
               target: x86_64-unknown-linux-musl,
@@ -207,7 +207,7 @@ jobs:
           cp "${{ steps.strip.outputs.BIN_PATH }}" "$ARCHIVE_DIR"
 
           # README, LICENSE and CHANGELOG files
-          cp "README.md" "LICENSE-MIT" "CHANGELOG.md" "$ARCHIVE_DIR"
+          cp "README.md" "LICENSE" "CHANGELOG.md" "$ARCHIVE_DIR"
 
           # base compressed package
           pushd "${PKG_STAGING}/" >/dev/null
