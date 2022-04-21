@@ -1,7 +1,7 @@
 name: CICD
 
 env:
-  MIN_SUPPORTED_RUST_VERSION: "1.59.0"  # TODO: Come back and lower this once we figure it out
+  MIN_SUPPORTED_RUST_VERSION: "1.59.0" # TODO: Come back and lower this once we figure it out
   CICD_INTERMEDIATES_DIR: "_cicd-intermediates"
 
 on:
@@ -59,6 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         job:
+          - { target: aarch64-apple-darwin, os: macos-10.15 }
           - {
               target: aarch64-unknown-linux-gnu,
               os: ubuntu-20.04,
@@ -182,6 +183,7 @@ jobs:
           command: test
           args: --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
 
+      # - TODO: This would be a good test, but the app is blocking. Add an `demo` mode that runs and exist without blocking
       # - name: Run binary
       #   uses: actions-rs/cargo@v1
       #   with:
