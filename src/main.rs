@@ -6,6 +6,7 @@ use crossterm::{
 };
 use fake::{faker::company::en::CatchPhase, Fake};
 use image2ascii::string2ascii;
+#[cfg(target_family = "unix")]
 use nix::{sys::signal, unistd::getpid};
 use rand::Rng;
 use std::{fs, io::Stdout, process::exit};
@@ -146,8 +147,11 @@ fn main() -> Result<()> {
                     } else if event.code == KeyCode::Char('z')
                         && event.modifiers == KeyModifiers::CONTROL
                     {
-                        release_terminal(&mut stdout)?;
-                        signal::kill(getpid(), signal::SIGSTOP).unwrap();
+                        #[cfg(target_family = "unix")]
+                        {
+                            release_terminal(&mut stdout)?;
+                            signal::kill(getpid(), signal::SIGSTOP).unwrap();
+                        }
                     // ... quit (q, ctrl-c)
                     } else if event.code == KeyCode::Char('q')
                         || event.code == KeyCode::Char('c')
