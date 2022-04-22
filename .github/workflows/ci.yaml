@@ -59,7 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: aarch64-apple-darwin, os: macos-12 }
+          # - { target: aarch64-apple-darwin, os: macos-12 }  # TODO: Not yet available see https://github.com/actions/runner/issues/805
           - {
               target: aarch64-unknown-linux-gnu,
               os: ubuntu-20.04,
@@ -183,7 +183,7 @@ jobs:
           command: test
           args: --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
 
-      # - TODO: This would be a good test, but the app is blocking. Add an `demo` mode that runs and exist without blocking
+      # - TODO: This would be a good test, but our binary blocks. Add an `demo` mode that runs and exits without blocking.
       # - name: Run binary
       #   uses: actions-rs/cargo@v1
       #   with:
