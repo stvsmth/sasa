@@ -17,7 +17,7 @@ use std::{
 };
 
 // const DRAW_CH: char = '*';
-const MIN_ASCII_ART_HEIGHT: usize = 0; // TODO: Zero out for now
+const MIN_ASCII_ART_HEIGHT: usize = 1; // TODO: Use value that will never trigger ascii art, for now
 const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
