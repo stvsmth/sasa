@@ -42,31 +42,9 @@ fn main() -> Result<()> {
 
     // Clear terminal, hide cursor, enable raw mode
     take_terminal(&mut stdout)?;
-    let mut curr_y = y_max / 2;
-
-    // Display start screen, with key binding descriptions (not a slide)
-    stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
-        .queue(style::Print("Ready to start"))?;
-    curr_y += 2;
-    stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
-        .queue(style::Print(
-            "`n` or `space` or `enter` to move to next slide",
-        ))?;
-    curr_y += 1;
-    stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
-        .queue(style::Print("`p` move to previous slide"))?;
-    curr_y += 1;
-    stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
-        .queue(style::Print("`t` to toggle elapsed time display"))?;
-    curr_y += 1;
-    stdout
-        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
-        .queue(style::Print("`q` to quit presentation"))?;
-    stdout.flush()?;
+    
+    // Display start screen w/ basic navigation tips
+    display_start_screen(&mut stdout, y_max / 2)?;
 
     // Slides init
     let slides_input = generate_buzzword_slides(x_max as usize, y_max as usize);
@@ -244,6 +222,36 @@ fn take_terminal(stdout: &mut Stdout) -> Result<()> {
 fn release_terminal(stdout: &mut Stdout) -> Result<()> {
     stdout.execute(terminal::Clear(terminal::ClearType::All))?;
     terminal::disable_raw_mode()?;
+    Ok(())
+}
+
+fn display_start_screen(stdout: &mut Stdout, y_start: u16) -> Result<()> {
+    // Display start screen, with key binding descriptions (not a slide)
+
+    let mut curr_y = y_start;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("Ready to start"))?;
+    curr_y += 2;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print(
+            "`n` or `space` or `enter` to move to next slide",
+        ))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`p` move to previous slide"))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`t` to toggle elapsed time display"))?;
+    curr_y += 1;
+    stdout
+        .queue(cursor::MoveTo(CONTENT_MARGIN, curr_y))?
+        .queue(style::Print("`q` to quit presentation"))?;
+    stdout.flush()?;
+
     Ok(())
 }
 
