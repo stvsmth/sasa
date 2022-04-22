@@ -25,6 +25,11 @@ const CONTENT_MARGIN: u16 = 4;
 struct Animate {
     rate: u64,
 }
+#[derive(Copy, Clone, Debug)]
+enum WithBullet {
+    Yes,
+    No,
+}
 
 #[derive(Clone, Debug)]
 struct Line {
@@ -286,7 +291,11 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         let mut lines = Vec::with_capacity(num_lines);
         let color = colors[i % colors.len()];
         for j in 0..=num_lines {
-            let with_bullet = j != 0;
+            let with_bullet = if j == 0 {
+                WithBullet::No
+            } else {
+                WithBullet::Yes
+            };
             lines.push(Line {
                 y: y as u16,
                 content: generate_buzzword_phrase(with_bullet),
@@ -385,11 +394,10 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     slides
 }
 
-fn generate_buzzword_phrase(with_bullet: bool) -> String {
-    if with_bullet {
-        format!("* {}", CatchPhase().fake::<String>())
-    } else {
-        CatchPhase().fake::<String>()
+fn generate_buzzword_phrase(with_bullet: WithBullet) -> String {
+    match with_bullet {
+        WithBullet::Yes => format!("* {}", CatchPhase().fake::<String>()),
+        WithBullet::No => CatchPhase().fake::<String>(),
     }
 }
 
