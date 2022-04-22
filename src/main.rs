@@ -5,19 +5,19 @@ use crossterm::{
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
 use fake::{faker::company::en::CatchPhase, Fake};
-use image2ascii::string2ascii;
+use glob::glob;
+// use image2ascii::string2ascii;
 #[cfg(target_family = "unix")]
 use nix::{sys::signal, unistd::getpid};
 use rand::Rng;
 use std::{fs, io::Stdout, process::exit};
 use std::{
     io::{stdout, Write},
-    path::PathBuf,
     thread, time,
 };
 
-const DRAW_CH: char = '*';
-const MIN_ASCII_ART_HEIGHT: usize = 12;
+// const DRAW_CH: char = '*';
+const MIN_ASCII_ART_HEIGHT: usize = 0; // TODO: Zero out for now
 const BOTTOM_OFFSET: u16 = 4;
 const CONTENT_MARGIN: u16 = 4;
 
@@ -253,7 +253,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     let mut slides = Vec::with_capacity(slide_count);
 
     // Random color generation
-    // TODO: Can we get color value of terminal and have dark vs light mode options?
+    // TODO: Can we get color value of terminal and generate appropriate colors?
     let colors = [
         Color::Cyan,
         Color::DarkMagenta,
@@ -290,87 +290,84 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
         slides.push(lines);
     }
 
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Add Text slides
-    // TODO: Install glob crate and read all slide*txt files.
-    //       Better yet, read one file and split on slides.
+    // Add Text slides ... TODO: Parse out content from markdown.
+    for entry in glob("slide*.txt").expect("Failed to read glob pattern") {
+        match entry {
+            Err(_) => panic!("Error in glob"), // TODO: Research how we might end up here.
+            Ok(path) => {
+                let color = colors[slides.len() % colors.len()];
+                let mut avoid_ascii_art = false;
+                // TODO: Handle pulling potential header out of text file
+                let bogus_header = ""; // hard-code to avoid work for now
+                let text_lines: Vec<String> = fs::read_to_string(&path)
+                    .unwrap() // TODO: Do proper error handling
+                    .split('\n')
+                    .into_iter()
+                    .map(|l| l.to_string())
+                    .collect();
+                let needed_space = text_lines.len() + (CONTENT_MARGIN as usize * 2);
+                let mut lines: Vec<Line> = vec![];
 
-    let diagram = PathBuf::from("Diagram.txt");
-    let todo = PathBuf::from("TODO.txt");
-    let the_end = PathBuf::from("The_End.txt");
-    for path in vec![diagram, todo, the_end] {
-        let color = colors[slides.len() % colors.len()];
-        let header = path
-            .file_stem()
-            .unwrap()
-            .to_string_lossy()
-            .replace('_', " ");
-        let mut avoid_ascii_art = false;
-        let text_lines: Vec<String> = fs::read_to_string(&path)
-            .unwrap() // TODO: Do proper error handling
-            .split('\n')
-            .into_iter()
-            .map(|l| l.to_string())
-            .collect();
-        let needed_space = text_lines.len() + (CONTENT_MARGIN as usize * 2);
-        let mut lines: Vec<Line> = vec![];
-
-        // Draw ascii art for the header, if we have height & width
-        match max_height.checked_sub(needed_space) {
-            Some(mut height) => {
-                if height >= max_height / 2 {
-                    height = (max_height as f32 / 2.5) as usize;
-                }
-                let c2d =
-                    string2ascii(&header, height as f32, DRAW_CH, Option::None, None).unwrap();
-                let text_art = c2d.to_lines();
-                // Find the widest part of our text art
-                let needed_width = text_art
-                    .iter()
-                    .fold(std::usize::MIN, |x, line| x.max(line.len()));
-                // We need to build the ascii art to get it's true height, check that against a sane minimum
-                if height <= MIN_ASCII_ART_HEIGHT
-                    || needed_width > max_width - CONTENT_MARGIN as usize
-                {
-                    avoid_ascii_art = true;
-                } else {
-                    // ... add the ascii art to the slide, starting at top
-                    lines.extend(gen_lines_from_ascii(
-                        CONTENT_MARGIN.into(),
-                        text_art,
-                        false,
+                // Draw ascii art for the header, if we have height & width
+                match max_height.checked_sub(needed_space) {
+                    Some(mut height) => {
+                        if height >= max_height / 2 {
+                            height = (max_height as f32 / 2.5) as usize;
+                        }
+                        // TODO: hacking out the header => ascii art for now, hard-code these two values to force no-op
+                        let needed_width = 9_999;
+                        let text_art = vec![];
+                        // let c2d = string2ascii(&header, height as f32, DRAW_CH, Option::None, None)
+                        //     .unwrap();
+                        // let text_art = c2d.to_lines();
+                        // // Find the widest part of our text art
+                        // let needed_width = text_art
+                        //     .iter()
+                        //     .fold(std::usize::MIN, |x, line| x.max(line.len()));
+                        // We need to build the ascii art to get it's true height, check that against a sane minimum
+                        if height <= MIN_ASCII_ART_HEIGHT   // TODO: MIN is zero now, we'll revisit asciiart headers
+                            || needed_width > max_width - CONTENT_MARGIN as usize
+                        {
+                            avoid_ascii_art = true;
+                        } else {
+                            // ... add the ascii art to the slide, starting at top
+                            lines.extend(gen_lines_from_ascii(
+                                CONTENT_MARGIN.into(),
+                                text_art,
+                                false,
+                                color,
+                            ));
+                        }
+                    }
+                    // Underflow, we really don't have space
+                    None => avoid_ascii_art = true,
+                };
+                // If we don't have space for ascii art, just render it as its own line TODO: Add bold/underline/???
+                if avoid_ascii_art {
+                    lines.push(Line {
+                        y: CONTENT_MARGIN,
+                        content: bogus_header.to_string(),
+                        animate: None,
                         color,
-                    ));
+                    });
                 }
+
+                // Dump the contents of this slide
+                // TODO: Handle text overflow (it currently just scrolls off screen ...)
+                let mut y = lines.len() as u16 + CONTENT_MARGIN + 2;
+                for line in text_lines {
+                    y += 1;
+                    lines.push(Line {
+                        y,
+                        content: line,
+                        animate: None,
+                        color,
+                    });
+                }
+
+                slides.push(lines);
             }
-            // Underflow, we really don't have space
-            None => avoid_ascii_art = true,
-        };
-
-        // If we don't have space for ascii art, just render it as its own line TODO: Add bold/underline/???
-        if avoid_ascii_art {
-            lines.push(Line {
-                y: CONTENT_MARGIN,
-                content: header.to_string(),
-                animate: None,
-                color,
-            });
         }
-
-        // Dump the contents of this slide
-        // TODO: Handle text overflow (it currently just scrolls off screen ...)
-        let mut y = lines.len() as u16 + CONTENT_MARGIN + 2;
-        for line in text_lines {
-            y += 1;
-            lines.push(Line {
-                y,
-                content: line,
-                animate: None,
-                color,
-            });
-        }
-
-        slides.push(lines);
     }
 
     slides

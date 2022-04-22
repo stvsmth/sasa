@@ -1,9 +1,0 @@
-Actually, reading a file is easy
-* Markdown should be doable, but it's a rabbit hole
-* There are other rabbit holes I want to explore first
-
-What's next
-* Slowly build up an editor?
-* Will investigate "prior art" after batch, surely vim/emacs have plugins for this?
-* Investigate iTerm, other protocols that allow display of images
-* Investigate plug-ins for transitions
