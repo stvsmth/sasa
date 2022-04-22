@@ -42,7 +42,7 @@ fn main() -> Result<()> {
 
     // Clear terminal, hide cursor, enable raw mode
     take_terminal(&mut stdout)?;
-    
+
     // Display start screen w/ basic navigation tips
     display_start_screen(&mut stdout, y_max / 2)?;
 
@@ -69,6 +69,8 @@ fn main() -> Result<()> {
                         || event.code == KeyCode::Char('n')
                         || event.code == KeyCode::Char(' ')
                     {
+                        // let Some(slide) = fetch_slide(next);
+                        //
                         match slides.pop() {
                             None => continue, // if there's no more slides, just stop on last slide
                             Some(slide) => {
@@ -99,6 +101,7 @@ fn main() -> Result<()> {
                     // ... go back one slide (p)
                     // ... TODO: next slide & prev slide cases are awfully similar
                     } else if event.code == KeyCode::Char('p') {
+                        // let Some(slide) = fetch_slide(prev);
                         if let Some(slide) = prev_slides.pop() {
                             // if we come back in via SIGCONT we need to retake the terminal
                             take_terminal(&mut stdout)?;
@@ -144,6 +147,7 @@ fn main() -> Result<()> {
                 // Event::Resize(_width, _height) => (),
             }
         }
+        // if Some(slide) => draw_slide(slide.render())
         let curr_ts = time::Instant::now();
         let elapsed = (curr_ts - start_ts).as_secs();
         let mut curr_ts_str = format!("Elapsed time: {}:{:02}", elapsed / 60, elapsed % 60);
@@ -257,7 +261,7 @@ fn display_start_screen(stdout: &mut Stdout, y_start: u16) -> Result<()> {
 
 fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line>> {
     let mut rng = rand::thread_rng();
-    let slide_count = rng.gen_range(3..=7);
+    let slide_count = rng.gen_range(5..=8);
     let mut slides = Vec::with_capacity(slide_count);
 
     // Random color generation
