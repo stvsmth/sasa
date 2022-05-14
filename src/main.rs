@@ -10,9 +10,12 @@ use glob::glob;
 #[cfg(target_family = "unix")]
 use nix::{sys::signal, unistd::getpid};
 use rand::Rng;
-use std::{fs, io::Stdout, process::exit};
 use std::{
+    fs,
+    io::Stdout,
     io::{stdout, Write},
+    process::exit,
+    string::ToString,
     thread, time,
 };
 
@@ -324,7 +327,7 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
                     .unwrap() // TODO: Do proper error handling
                     .split('\n')
                     .into_iter()
-                    .map(|l| l.to_string())
+                    .map(ToString::to_string)
                     .collect();
                 let needed_space = text_lines.len() + (CONTENT_MARGIN as usize * 2);
                 let mut lines: Vec<Line> = vec![];
