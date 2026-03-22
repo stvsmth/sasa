@@ -4,7 +4,7 @@ use crossterm::{
     style::{self, Color, Stylize},
     terminal, ExecutableCommand, QueueableCommand, Result,
 };
-use fake::{faker::company::en::CatchPhase, Fake};
+use fake::{faker::company::en::CatchPhrase, Fake};
 use glob::glob;
 // use image2ascii::string2ascii;
 #[cfg(target_family = "unix")]
@@ -326,7 +326,6 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
                 let text_lines: Vec<String> = fs::read_to_string(&path)
                     .unwrap() // TODO: Do proper error handling
                     .split('\n')
-                    .into_iter()
                     .map(ToString::to_string)
                     .collect();
                 let needed_space = text_lines.len() + (CONTENT_MARGIN as usize * 2);
@@ -399,8 +398,8 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
 
 fn generate_buzzword_phrase(with_bullet: WithBullet) -> String {
     match with_bullet {
-        WithBullet::Yes => format!("* {}", CatchPhase().fake::<String>()),
-        WithBullet::No => CatchPhase().fake::<String>(),
+        WithBullet::Yes => format!("* {}", CatchPhrase().fake::<String>()),
+        WithBullet::No => CatchPhrase().fake::<String>(),
     }
 }
 
