@@ -6,7 +6,6 @@ use crossterm::{
 };
 use fake::{faker::company::en::CatchPhrase, Fake};
 use glob::glob;
-// use image2ascii::string2ascii;
 #[cfg(target_family = "unix")]
 use nix::{sys::signal, unistd::getpid};
 use rand::prelude::*;
@@ -412,14 +411,6 @@ fn gen_lines_from_ascii(
 ) -> Vec<Line> {
     let mut lines = vec![];
     for line in ascii_lines {
-        // image2ascii will contain space above/below to allow for ascender/descenders
-        // trim that out if we are not using those values, it will throw off centering
-        let mut candidate = line.clone();
-        candidate.retain(|c| !c.is_whitespace());
-        if candidate.is_empty() {
-            continue;
-        }
-
         lines.push(Line {
             y: y as u16,
             content: line,
