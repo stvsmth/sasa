@@ -140,6 +140,7 @@ fn main() -> Result<()> {
                         {
                             release_terminal(&mut stdout)?;
                             signal::kill(getpid(), signal::SIGSTOP).unwrap();
+                            // signal::kill(getpid(), signal::SIGSTOP).unwrap();
                         }
                     // ... quit (q, ctrl-c)
                     } else if event.code == KeyCode::Char('q')
