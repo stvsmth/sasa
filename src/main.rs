@@ -2,7 +2,7 @@ use crossterm::{
     cursor,
     event::{poll, read, Event, KeyCode, KeyModifiers},
     style::{self, Color, Stylize},
-    terminal, ExecutableCommand, QueueableCommand, Result,
+    terminal, ExecutableCommand, QueueableCommand,
 };
 use fake::{faker::company::en::CatchPhrase, Fake};
 use glob::glob;
@@ -13,7 +13,7 @@ use rand::prelude::*;
 use std::{
     fs,
     io::Stdout,
-    io::{stdout, Write},
+    io::{stdout, Write, Result},
     process::exit,
     string::ToString,
     thread, time,
