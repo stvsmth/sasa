@@ -9,7 +9,7 @@ use glob::glob;
 // use image2ascii::string2ascii;
 #[cfg(target_family = "unix")]
 use nix::{sys::signal, unistd::getpid};
-use rand::Rng;
+use rand::prelude::*;
 use std::{
     fs,
     io::Stdout,
@@ -268,8 +268,8 @@ fn display_start_screen(stdout: &mut Stdout, y_start: u16) -> Result<()> {
 }
 
 fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line>> {
-    let mut rng = rand::thread_rng();
-    let slide_count = rng.gen_range(5..=8);
+    let mut rng = rand::rng();
+    let slide_count = rng.random_range(5..=8);
     let mut slides = Vec::with_capacity(slide_count);
 
     // Random color generation
@@ -288,8 +288,8 @@ fn generate_buzzword_slides(max_width: usize, max_height: usize) -> Vec<Vec<Line
     // ... if we have 3 lines of text, those lines will be at 9, 10, 11 etc
     // ... TODO: Currently not setting transition for first 2 slides
     for i in 0..slide_count {
-        let mut rng = rand::thread_rng();
-        let num_lines = rng.gen_range(2..=4);
+        let mut rng = rand::rng();
+        let num_lines = rng.random_range(2..=4);
         let mut y = (max_height / 2) - (num_lines / 2);
         let mut lines = Vec::with_capacity(num_lines);
         let color = colors[i % colors.len()];
