@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 crossterm = "0.23"
-fake =  "2.4"
+fake =  "5.1"
 glob = "0.3"
 image2ascii = "0.2"
 rand = "0.8"
